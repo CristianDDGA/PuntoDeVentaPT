@@ -1,0 +1,67 @@
+## Ignore Visual Studio temporary files, build results, and
+## user-specific files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Build folders
+**/bin/
+**/obj/
+*/bin/
+*/obj/
+
+## NuGet
+.nuget/packages/
+packages/
+*.nupkg
+
+## Rider
+.idea/
+
+## ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+## Dotnet tool and publish
+*.db
+*.db-journal
+publish/
+publish/**
+
+## Logs
+*.log
+logs/
+
+## User secrets
+secrets.json
+appsettings.Development.json
+
+## IIS
+IISExpress/
+*.vsix
+
+## Mac / Linux
+.DS_Store
+
+## Node
+node_modules/
+
+## Blazor/Web
+wwwroot/lib/**/node_modules/
+
+## Test results
+TestResults/
+*.trx
+
+## JetBrains
+*.DotSettings.user
+
+## Git LFS
+# Add patterns here if you plan to use Git LFS for big binaries
+
+# Ignore built assets and temporary files that should not be committed
+*.db
+*.cache
+*.bak

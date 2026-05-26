@@ -1,0 +1,52 @@
+using PuntoVenta.Domain.Exceptions;
+
+namespace PuntoVenta.Domain.Entities;
+
+public class Product
+{
+    public int     ProductId { get; private set; }
+    public string  Name      { get; private set; } = string.Empty;
+    public decimal Price     { get; private set; }
+    public int     Stock     { get; private set; }
+
+    private Product() { }
+
+    public static Product Create(string name, decimal price, int stock)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new DomainException("El nombre del producto es obligatorio.");
+
+        if (price <= 0)
+            throw new DomainException("El precio debe ser mayor a cero.");
+
+        if (stock < 0)
+            throw new DomainException("El stock no puede ser negativo.");
+
+        return new Product
+        {
+            Name  = name.Trim(),
+            Price = price,
+            Stock = stock
+        };
+    }
+
+    // Lógica de negocio: reducir stock al vender
+    public void ReduceStock(int quantity)
+    {
+        if (quantity <= 0)
+            throw new DomainException("La cantidad debe ser mayor a cero.");
+
+        if (quantity > Stock)
+            throw new DomainException($"Stock insuficiente para '{Name}'. Disponible: {Stock}.");
+
+        Stock -= quantity;
+    }
+
+    public void AddStock(int quantity)
+    {
+        if (quantity <= 0)
+            throw new DomainException("La cantidad debe ser mayor a cero.");
+
+        Stock += quantity;
+    }
+}

@@ -1,0 +1,78 @@
+using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
+using PuntoVenta.Application.DTOs.Customer;
+using PuntoVenta.Application.Interfaces.Services;
+
+namespace PuntoVenta.API.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class CustomersController : ControllerBase
+{
+    private readonly ICustomerService            _customerService;
+    private readonly IValidator<CreateCustomerDto> _createCustomerValidator;
+
+    public CustomersController(
+        ICustomerService             customerService,
+        IValidator<CreateCustomerDto> createCustomerValidator)
+    {
+        _customerService         = customerService;
+        _createCustomerValidator = createCustomerValidator;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var allCustomers = await _customerService.GetAllAsync();
+        return Ok(allCustomers);
+    }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchByLastName([FromQuery] string lastName)
+    {
+        var matchingCustomers = await _customerService.SearchByLastNameAsync(lastName);
+        return Ok(matchingCustomers);
+    }
+
+    /// <summary>
+    /// Returns a paginated list of customers.
+    /// When customerId is provided it takes precedence over lastName.
+    /// </summary>
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] int?    customerId     = null,
+        [FromQuery] string? documentNumber = null,
+        [FromQuery] string? lastName       = null,
+        [FromQuery] int     page           = 1,
+        [FromQuery] int     pageSize       = 10)
+    {
+        if (page < 1)     page     = 1;
+        if (pageSize < 1) pageSize = 10;
+
+        var pagedResult = await _customerService.SearchPagedAsync(customerId, documentNumber, lastName, page, pageSize);
+        return Ok(pagedResult);
+    }
+
+    [HttpGet("{customerId:int}")]
+    public async Task<IActionResult> GetById(int customerId)
+    {
+        var existingCustomer = await _customerService.GetByIdAsync(customerId);
+
+        if (existingCustomer is null)
+            return NotFound($"Customer with id {customerId} not found.");
+
+        return Ok(existingCustomer);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateCustomerDto createCustomerDto)
+    {
+        var validationResult = await _createCustomerValidator.ValidateAsync(createCustomerDto);
+
+        if (!validationResult.IsValid)
+            return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+
+        var savedCustomer = await _customerService.CreateAsync(createCustomerDto);
+        return CreatedAtAction(nameof(GetById), new { customerId = savedCustomer.CustomerId }, savedCustomer);
+    }
+}

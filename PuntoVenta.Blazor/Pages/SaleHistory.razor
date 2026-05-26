@@ -1,0 +1,440 @@
+@page "/historial"
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject SaleApiService SaleApiService
+@inject IJSRuntime     JSRuntime
+
+<PageTitle>Historial de Facturas — Punto de Venta</PageTitle>
+
+<div class="section-gap">
+
+    <!-- ══ PAGE TITLE ══════════════════════════════════════════════════ -->
+    <div>
+        <h1 style="font-size:var(--font-size-2xl); font-weight:var(--font-weight-bold); color:var(--color-text-primary); margin-bottom:4px; display:flex; align-items:center; gap:var(--spacing-sm);">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg> Historial de Facturas
+        </h1>
+        <p style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">
+            Busca, consulta y descarga cualquier factura emitida.
+        </p>
+    </div>
+
+    <!-- ══ SEARCH TOOLBAR ══════════════════════════════════════════════ -->
+    <div class="card">
+        <div style="display:grid; grid-template-columns:140px 1fr auto auto; gap:var(--spacing-md); align-items:flex-end;">
+            <div class="field-group">
+                <label class="field-label">Nº Factura</label>
+                <input class="field-input field-input--numeric"
+                       type="number"
+                       placeholder="Ej: 1001"
+                       value="@(_searchSaleId?.ToString() ?? "")"
+                       @oninput="OnSearchSaleIdInput" />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Nombre del Cliente</label>
+                <input class="field-input"
+                       type="text"
+                       placeholder="Buscar por nombre o apellido..."
+                       value="@_searchCustomerName"
+                       @oninput="OnSearchCustomerNameInput" />
+            </div>
+            <div class="field-group" style="justify-content:flex-end;">
+                <label class="field-label">&nbsp;</label>
+                <button class="btn @(_excludeVoided ? "btn--warning" : "btn--secondary")"
+                        id="toggle-exclude-voided"
+                        title="@(_excludeVoided ? "Mostrando solo facturas activas" : "Mostrando todas las facturas")"
+                        @onclick="ToggleExcludeVoided">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        @if (_excludeVoided)
+                        {
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        }
+                        else
+                        {
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        }
+                    </svg>
+                    @(_excludeVoided ? "Solo activas" : "Todas")
+                </button>
+            </div>
+            <div class="field-group" style="justify-content:flex-end;">
+                <label class="field-label">&nbsp;</label>
+                <button class="btn btn--primary" @onclick="() => LoadPageAsync(1)">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg> Buscar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ RESULTS TABLE ═══════════════════════════════════════════════ -->
+    <div class="card">
+
+        @if (_isLoading)
+        {
+            <div class="flex-center" style="padding:var(--spacing-2xl);">
+                <div class="loader-ring"></div>
+            </div>
+        }
+        else if (_pagedResult?.Items.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+                <p class="empty-state-text">No se encontraron facturas con los filtros aplicados.</p>
+            </div>
+        }
+        else
+        {
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="align-right">Nº Factura</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th class="align-right">Subtotal</th>
+                            <th class="align-right">IVA (12%)</th>
+                            <th class="align-right">Total</th>
+                            <th class="align-center">Estado</th>
+                            <th class="align-center">Detalle</th>
+                            <th class="align-center">Acciones</th>
+                            <th class="align-center">PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var saleModel in _pagedResult?.Items ?? [])
+                        {
+                            var isToday = saleModel.SaleDate.Date == DateTime.Today;
+                            <tr>
+                                <td class="td-numeric">
+                                    <span style="color:var(--color-accent); font-weight:var(--font-weight-semibold);">
+                                        #@saleModel.SaleId.ToString("D6")
+                                    </span>
+                                </td>
+                                <td>@saleModel.CustomerName</td>
+                                <td>
+                                    <div style="display:flex; flex-direction:column; gap:2px;">
+                                        <span>@saleModel.SaleDate.ToString("dd/MM/yyyy")</span>
+                                        <span class="text-muted" style="font-size:var(--font-size-xs);">@saleModel.SaleDate.ToString("HH:mm")</span>
+                                    </div>
+                                </td>
+                                <td class="td-numeric">$@saleModel.Subtotal.ToString("N2")</td>
+                                <td class="td-numeric text-muted">$@saleModel.TaxAmount.ToString("N2")</td>
+                                <td class="td-numeric" style="color:var(--color-success); font-weight:var(--font-weight-semibold);">
+                                    $@saleModel.Total.ToString("N2")
+                                </td>
+                                <td class="align-center">
+                                    @if (saleModel.Status == "Pagado")
+                                    {
+                                        <span class="badge badge--success">Pagado</span>
+                                    }
+                                    else if (saleModel.Status == "Anulado")
+                                    {
+                                        <span class="badge badge--error">Anulado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge--warning">@saleModel.Status</span>
+                                    }
+                                </td>
+                                <td class="align-center">
+                                    <button class="btn btn--secondary btn--sm" @onclick="() => OpenDetailModal(saleModel)">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Ver
+                                    </button>
+                                </td>
+                                <td class="align-center">
+                                    @if (saleModel.Status != "Anulado")
+                                    {
+                                        <button class="btn btn--danger btn--sm" @onclick="() => VoidSaleAsync(saleModel.SaleId)" title="Anular Factura">
+                                            Anular
+                                        </button>
+                                    }
+                                </td>
+                                <td class="align-center">
+                                    <button class="btn btn--ghost btn--sm"
+                                            title="Ver PDF"
+                                            @onclick="() => PreviewPdfAsync(saleModel.SaleId)">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg> PDF
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination footer -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:var(--spacing-lg); flex-wrap:wrap; gap:var(--spacing-md);">
+                <span class="pagination-info">
+                    @(_pagedResult?.TotalCount ?? 0) facturas en total
+                    · Mostrando página @_currentPage de @(_pagedResult?.TotalPages ?? 1)
+                </span>
+
+                <div class="pagination">
+                    <button class="pagination-btn"
+                            disabled="@(_currentPage <= 1)"
+                            @onclick="() => LoadPageAsync(_currentPage - 1)">‹ Anterior</button>
+
+                    @for (int pageIndex = 1; pageIndex <= (_pagedResult?.TotalPages ?? 1); pageIndex++)
+                    {
+                        var capturedPage = pageIndex;
+                        <button class="pagination-btn @(capturedPage == _currentPage ? "pagination-btn--active" : "")"
+                                @onclick="() => LoadPageAsync(capturedPage)">
+                            @capturedPage
+                        </button>
+                    }
+
+                    <button class="pagination-btn"
+                            disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))"
+                            @onclick="() => LoadPageAsync(_currentPage + 1)">Siguiente ›</button>
+                </div>
+            </div>
+        }
+    </div>
+
+</div>
+
+<!-- ══ MODAL: SALE DETAIL ══════════════════════════════════════════════ -->
+@if (_isDetailModalOpen && _selectedSale is not null)
+{
+    <div class="modal-overlay" @onclick="CloseDetailModal">
+        <div class="modal-box modal-box--wide" @onclick:stopPropagation>
+
+            <div class="modal-header">
+                <div>
+                    <span class="modal-title" style="display:flex; align-items:center; gap:var(--spacing-xs);"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Factura #@_selectedSale.SaleId.ToString("D6")</span>
+                    <div style="font-size:var(--font-size-xs); color:var(--color-text-secondary); margin-top:2px;">
+                        @_selectedSale.SaleDate.ToString("dd/MM/yyyy HH:mm") · Cliente: @_selectedSale.CustomerName
+                    </div>
+                </div>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseDetailModal">✕</button>
+            </div>
+
+            <div class="modal-body">
+
+                <!-- Customer summary strip -->
+                <div class="product-info-strip" style="margin-bottom:var(--spacing-lg);">
+                    <div class="product-info-item">
+                        <span class="product-info-key">Cliente:</span>
+                        <span class="product-info-val">@_selectedSale.CustomerName</span>
+                    </div>
+                    <div class="product-info-separator"></div>
+                    <div class="product-info-item">
+                        <span class="product-info-key">Pago:</span>
+                        <span class="product-info-val">@_selectedSale.PaymentType</span>
+                    </div>
+                    <div class="product-info-separator"></div>
+                    <div class="product-info-item">
+                        <span class="product-info-key">Fecha:</span>
+                        <span class="product-info-val font-mono">@_selectedSale.SaleDate.ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                </div>
+
+                <!-- Detail lines -->
+                <div style="overflow-x:auto; margin-bottom:var(--spacing-lg);">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Producto</th>
+                                <th class="align-right">Precio Unit.</th>
+                                <th class="align-right">Cantidad</th>
+                                <th class="align-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var detail in _selectedSale.Details)
+                            {
+                                <tr>
+                                    <td class="font-mono">@detail.ProductId</td>
+                                    <td>@detail.ProductName</td>
+                                    <td class="td-numeric">$@detail.UnitPrice.ToString("N2")</td>
+                                    <td class="td-numeric">@detail.Quantity</td>
+                                    <td class="td-numeric" style="font-weight:var(--font-weight-semibold);">
+                                        $@detail.Subtotal.ToString("N2")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Totals summary -->
+                <div style="display:flex; justify-content:flex-end;">
+                    <div class="totals-panel">
+                        <div class="totals-row">
+                            <span class="totals-label">Subtotal</span>
+                            <span class="totals-value font-mono">$@_selectedSale.Subtotal.ToString("N2")</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label">IVA (12%)</span>
+                            <span class="totals-value font-mono">$@_selectedSale.TaxAmount.ToString("N2")</span>
+                        </div>
+                        <div class="totals-row totals-row--total">
+                            <span class="totals-label">Total</span>
+                            <span class="totals-value font-mono">$@_selectedSale.Total.ToString("N2")</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn--ghost" @onclick="CloseDetailModal">Cerrar</button>
+                <button class="btn btn--primary" @onclick="() => PreviewPdfAsync(_selectedSale.SaleId)">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg> Ver PDF
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ══ MODAL: PDF PREVIEW ══════════════════════════════════════════════ -->
+@if (_isPdfPreviewModalOpen)
+{
+    <div class="modal-overlay" @onclick="ClosePdfPreviewModal">
+        <div class="modal-box modal-box--wide" style="height: 88vh; display: flex; flex-direction: column;" @onclick:stopPropagation>
+            <div class="modal-header">
+                <span class="modal-title" style="display:flex; align-items:center; gap:var(--spacing-xs);"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg> Vista Previa de Factura</span>
+                <div style="display:flex; gap:var(--spacing-sm);">
+                    <button class="btn btn--primary btn--sm" @onclick="DownloadCurrentPreviewPdf">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Descargar
+                    </button>
+                    <button class="btn btn--ghost btn--icon" @onclick="ClosePdfPreviewModal">✕</button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding:0; overflow:hidden; flex:1;">
+                <iframe src="@_pdfPreviewUrl" style="width:100%; height:100%; border:none;"></iframe>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ══ CUSTOM CONFIRM MODAL ══════════════════════════════════════════════ -->
+<ConfirmModal @ref="_confirmModal" />
+
+@code {
+    // ── Confirm modal ref ────────────────────────────────────────────────
+    private ConfirmModal _confirmModal = default!;
+
+    // ── Search state ────────────────────────────────────────────────────
+    private int?    _searchSaleId      = null;
+    private string  _searchCustomerName = string.Empty;
+    private bool    _excludeVoided     = false;
+    private int     _currentPage       = 1;
+    private const int PageSize         = 15;
+
+    // ── Data state ──────────────────────────────────────────────────────
+    private PagedResultModel<SaleModel>? _pagedResult = null;
+    private bool                         _isLoading   = true;
+
+    // ── Detail modal state ──────────────────────────────────────────────
+    private bool       _isDetailModalOpen = false;
+    private SaleModel? _selectedSale      = null;
+
+    // ── PDF Preview modal state ─────────────────────────────────────────
+    private bool   _isPdfPreviewModalOpen = false;
+    private string _pdfPreviewUrl         = string.Empty;
+    private string _pdfPreviewBase64      = string.Empty;
+    private string _pdfPreviewFileName    = string.Empty;
+
+    // ── Lifecycle ───────────────────────────────────────────────────────
+
+    protected override async Task OnInitializedAsync()
+        => await LoadPageAsync(1);
+
+    // ── Search input handlers ───────────────────────────────────────────
+
+    private void OnSearchSaleIdInput(ChangeEventArgs e)
+    {
+        _searchSaleId       = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _searchCustomerName = string.Empty;
+    }
+
+    private void OnSearchCustomerNameInput(ChangeEventArgs e)
+    {
+        _searchCustomerName = e.Value?.ToString() ?? string.Empty;
+        _searchSaleId       = null;
+    }
+
+    private async Task ToggleExcludeVoided()
+    {
+        _excludeVoided = !_excludeVoided;
+        await LoadPageAsync(1);
+    }
+
+    // ── Pagination ──────────────────────────────────────────────────────
+
+    private async Task LoadPageAsync(int page)
+    {
+        _isLoading   = true;
+        _currentPage = page;
+
+        _pagedResult = await SaleApiService.SearchPagedAsync(
+            saleId:        _searchSaleId,
+            customerName:  _searchCustomerName,
+            page:          page,
+            pageSize:      PageSize,
+            excludeVoided: _excludeVoided);
+
+        _isLoading = false;
+    }
+
+    // ── Detail modal ────────────────────────────────────────────────────
+
+    private void OpenDetailModal(SaleModel saleModel)
+    {
+        _selectedSale      = saleModel;
+        _isDetailModalOpen = true;
+    }
+
+    private void CloseDetailModal()
+    {
+        _isDetailModalOpen = false;
+        _selectedSale      = null;
+    }
+
+    // ── PDF Preview & Download ──────────────────────────────────────────
+
+    private async Task PreviewPdfAsync(int saleId)
+    {
+        var pdfBytes = await SaleApiService.GetPdfAsync(saleId);
+        if (pdfBytes is null) return;
+
+        _pdfPreviewBase64      = Convert.ToBase64String(pdfBytes);
+        _pdfPreviewUrl         = $"data:application/pdf;base64,{_pdfPreviewBase64}";
+        _pdfPreviewFileName    = $"Factura_{saleId:D6}.pdf";
+        _isPdfPreviewModalOpen = true;
+    }
+
+    private void ClosePdfPreviewModal()
+    {
+        _isPdfPreviewModalOpen = false;
+        _pdfPreviewUrl         = string.Empty;
+        _pdfPreviewBase64      = string.Empty;
+    }
+
+    private async Task DownloadCurrentPreviewPdf()
+    {
+        if (!string.IsNullOrEmpty(_pdfPreviewBase64))
+        {
+            await JSRuntime.InvokeVoidAsync("downloadPdf", _pdfPreviewBase64, _pdfPreviewFileName);
+        }
+    }
+
+    private async Task VoidSaleAsync(int saleId)
+    {
+        var confirmed = await _confirmModal.ShowAsync(
+            message:     $"¿Estás seguro de anular la factura #{saleId:D6}? Esta acción devolverá el stock y no se puede deshacer.",
+            title:       "Anular Factura",
+            confirmText: "Sí, anular");
+
+        if (confirmed)
+        {
+            var success = await SaleApiService.VoidSaleAsync(saleId);
+            if (success)
+            {
+                await LoadPageAsync(_currentPage);
+            }
+        }
+    }
+}

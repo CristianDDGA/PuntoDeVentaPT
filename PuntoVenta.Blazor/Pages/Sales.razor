@@ -1,0 +1,1150 @@
+@page "/nueva-venta"
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject CustomerApiService CustomerApiService
+@inject ProductApiService  ProductApiService
+@inject SaleApiService     SaleApiService
+@inject IJSRuntime         JSRuntime
+@implements IDisposable
+@using System.Timers
+
+<PageTitle>Nueva Venta — Punto de Venta</PageTitle>
+
+<div class="section-gap">
+
+    <!-- ══ INVOICE HEADER ══════════════════════════════════════════════ -->
+    <div class="invoice-header">
+        <div style="display:flex; gap:var(--spacing-md); flex-wrap:wrap;">
+            <div class="invoice-number-badge">
+                <span class="invoice-number-label">Nº Factura</span>
+                <span class="invoice-number-value">#@_nextInvoiceNumber.ToString("D6")</span>
+            </div>
+            <div class="invoice-date-badge">
+                <span class="invoice-date-label">Fecha</span>
+                <span class="invoice-date-value">@DateTime.Now.ToString("dd/MM/yyyy")</span>
+            </div>
+        </div>
+        <div class="flex gap-md" style="flex-wrap:wrap; margin-left:auto;">
+            <button class="btn btn--ghost" @onclick="OpenSaleHistoryModal">
+                 <i class="ph ph-receipt"></i> Buscar Facturas
+            </button>
+            <button class="btn btn--primary btn--lg" @onclick="CreateSale" disabled="@_isProcessing">
+                @if (_isProcessing)
+                {
+                    <span><i class="ph ph-hourglass-high"></i> Procesando...</span>
+                }
+                else
+                {
+                    <span><i class="ph ph-file-pdf"></i> Facturar (PDF)</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    <!-- ══ ERROR MESSAGE ═════════════════════════════════════════════════ -->
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert--error"><i class="ph ph-warning-circle"></i> @_errorMessage</div>
+    }
+
+    <!-- ══ CUSTOMER SECTION ══════════════════════════════════════════════ -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></span>
+            <span class="card-title">Datos del Cliente</span>
+            <button class="btn btn--secondary btn--sm ml-auto" @onclick="OpenCustomerModal">
+                <i class="ph ph-magnifying-glass"></i> Buscar Cliente
+            </button>
+        </div>
+
+        <div class="form-grid form-grid-4">
+            <div class="field-group">
+                <label class="field-label">RUC/Cédula</label>
+                <input class="field-input" value="@_selectedCustomer?.DocumentNumber" readonly />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Nombre</label>
+                <input class="field-input" value="@_selectedCustomer?.FirstName" readonly />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Apellido</label>
+                <input class="field-input" value="@_selectedCustomer?.LastName" readonly />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Teléfono</label>
+                <input class="field-input" value="@_selectedCustomer?.Phone" readonly />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Dirección</label>
+                <input class="field-input" value="@_selectedCustomer?.Address" readonly />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Ciudad</label>
+                <input class="field-input" value="@_selectedCustomer?.City" readonly />
+            </div>
+            <div class="field-group" style="grid-column: span 2;">
+                <label class="field-label">Correo Electrónico</label>
+                <input class="field-input" value="@_selectedCustomer?.Email" readonly />
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ PRODUCT SEARCH SECTION ════════════════════════════════════════ -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></span>
+            <span class="card-title">Agregar Producto</span>
+            <button class="btn btn--secondary btn--sm ml-auto" @onclick="OpenProductModal">
+                <i class="ph ph-magnifying-glass"></i> Buscar Producto
+            </button>
+        </div>
+
+        <!-- Selected product info strip -->
+        <div class="product-info-strip" style="margin-bottom: var(--spacing-md);">
+            @if (_selectedProduct is not null)
+            {
+                <div class="product-info-item">
+                    <span class="product-info-key">ID:</span>
+                    <span class="product-info-val">@_selectedProduct.ProductId</span>
+                </div>
+                <div class="product-info-separator"></div>
+                <div class="product-info-item">
+                    <span class="product-info-key">Nombre:</span>
+                    <span class="product-info-val">@_selectedProduct.Name</span>
+                </div>
+                <div class="product-info-separator"></div>
+                <div class="product-info-item">
+                    <span class="product-info-key">Precio:</span>
+                    <span class="product-info-val font-mono">$@_selectedProduct.Price.ToString("F2")</span>
+                </div>
+                <div class="product-info-separator"></div>
+                <div class="product-info-item">
+                    <span class="product-info-key">Stock:</span>
+                    <span class="product-info-val font-mono">@_selectedProduct.Stock</span>
+                </div>
+            }
+            else
+            {
+                <span class="text-muted" style="font-size:var(--font-size-sm);">Ningún producto seleccionado</span>
+            }
+        </div>
+
+        <div class="flex gap-md" style="align-items:flex-end; flex-wrap:wrap;">
+            <div class="field-group">
+                <label class="field-label">Cantidad</label>
+                <div style="display:flex; gap:4px;">
+                    <input class="field-input field-input--numeric"
+                           type="number"
+                           min="1"
+                           max="@(_selectedProduct?.Stock ?? 1)"
+                           style="width:80px;"
+                           @bind-value="_selectedQuantity"
+                           @bind-value:event="oninput" />
+                    <button class="btn btn--xs btn--max" 
+                            style="height:38px;"
+                            type="button"
+                            title="Usar stock máximo (Actualizado)"
+                            disabled="@(_selectedProduct is null)"
+                            @onclick="SetMaxQuantitySelectionAsync">
+                        MAX
+                    </button>
+                </div>
+            </div>
+            <button class="btn btn--success" @onclick="AddProductToSale" disabled="@(_selectedProduct is null || _selectedProduct?.Stock <= 0)">
+                <i class="ph ph-plus-circle"></i> Agregar al detalle
+            </button>
+            @if (_selectedProduct is not null && _selectedProduct.Stock <= 0)
+            {
+                <span style="color:var(--color-danger); font-size:var(--font-size-sm); align-self:center;"><i class="ph ph-prohibit"></i> Sin stock disponible</span>
+            }
+        </div>
+    </div>
+
+    <!-- ══ SALE DETAIL TABLE ═════════════════════════════════════════════ -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></span>
+            <span class="card-title">Detalle de Venta</span>
+            <span class="text-muted ml-auto" style="font-size:var(--font-size-xs);">
+                @_saleDetails.Count producto(s)
+            </span>
+        </div>
+
+        @if (_saleDetails.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="ph ph-shopping-cart"></i></div>
+                <p class="empty-state-text">No hay productos en el detalle. Busca y agrega productos.</p>
+            </div>
+        }
+        else
+        {
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th class="align-right">Precio Unit.</th>
+                            <th class="align-right">Cantidad</th>
+                            <th class="align-right">Subtotal</th>
+                            <th class="align-center">Eliminar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var saleDetailModel in _saleDetails)
+                        {
+                            var hasRowError = saleDetailModel.Quantity <= 0 || saleDetailModel.Quantity > saleDetailModel.MaxStock;
+                            <tr style="@(hasRowError ? "background:rgba(var(--color-danger-rgb, 180,30,30),0.12);" : "")">
+                                <td class="font-mono">@saleDetailModel.ProductId</td>
+                                <td>
+                                    <div style="font-weight:var(--font-weight-medium);">@saleDetailModel.ProductName</div>
+                                    <span class="text-muted" style="font-size:var(--font-size-xs); display:block; opacity:0.8;">
+                                        <i class="ph ph-stack"></i> Stock disponible: @saleDetailModel.MaxStock
+                                    </span>
+                                    @if (hasRowError)
+                                    {
+                                        <span style="color:var(--color-danger); font-size:var(--font-size-xs); display:block;"><i class="ph ph-warning"></i> Cantidad inválida o sin stock</span>
+                                    }
+                                </td>
+                                <td class="td-numeric">$@saleDetailModel.UnitPrice.ToString("F2")</td>
+                                <td class="align-right">
+                                    <div style="display:flex; align-items:center; gap:4px; justify-content:flex-end;">
+                                        <input class="table-input-quantity @(hasRowError ? "field-input--error" : "")"
+                                               type="number"
+                                               min="1"
+                                               max="@saleDetailModel.MaxStock"
+                                               @bind-value="saleDetailModel.Quantity"
+                                               @bind-value:event="oninput" />
+                                        <button class="btn btn--xs btn--max" 
+                                                type="button"
+                                                title="Usar stock máximo (Actualizado)"
+                                                @onclick="() => SetMaxQuantityDetailAsync(saleDetailModel)">
+                                            MAX
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="td-numeric">$@saleDetailModel.Subtotal.ToString("F2")</td>
+                                <td class="align-center">
+                                    <button class="btn btn--danger btn--icon"
+                                            title="Eliminar fila"
+                                            @onclick="() => ConfirmRemoveDetail(saleDetailModel)">
+                                        <i class="ph ph-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals and Payment Method -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:var(--spacing-lg); flex-wrap:wrap; gap:var(--spacing-md);">
+                <div class="payment-method-panel" style="min-width:200px;">
+                    <label class="field-label" style="margin-bottom:4px; display:block; font-weight:var(--font-weight-semibold); color:var(--color-text-secondary);">Método de Pago</label>
+                    <select class="field-input" @bind="_selectedPaymentType" style="width:100%; cursor:pointer;">
+                        <option value="Cash">Efectivo</option>
+                        <option value="Card">Tarjeta</option>
+                        <option value="Transfer">Transferencia</option>
+                    </select>
+                </div>
+                <div class="totals-panel">
+                    <div class="totals-row">
+                        <span class="totals-label">Subtotal</span>
+                        <span class="totals-value font-mono">$@_calculatedSubtotal.ToString("F2")</span>
+                    </div>
+                    <div class="totals-row">
+                        <span class="totals-label">IVA (12%)</span>
+                        <span class="totals-value font-mono">$@_calculatedTax.ToString("F2")</span>
+                    </div>
+                    <div class="totals-row totals-row--total">
+                        <span class="totals-label">Total</span>
+                        <span class="totals-value font-mono">$@_calculatedTotal.ToString("F2")</span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+</div>
+
+<!-- ══ MODAL: CUSTOMER SEARCH ════════════════════════════════════════════ -->
+@if (_isCustomerModalOpen)
+{
+    <div class="modal-overlay" @onclick="CloseCustomerModal">
+        <div class="modal-box modal-box--wide" @onclick:stopPropagation>
+
+            <div class="modal-header">
+                <span class="modal-title"><i class="ph ph-user"></i> Buscar Cliente</span>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseCustomerModal"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Search bar -->
+                <div class="modal-search-bar" style="grid-template-columns: 120px 1fr auto;">
+                    <div class="field-group">
+                        <label class="field-label">RUC/Cédula</label>
+                        <input class="field-input"
+                               type="text"
+                               placeholder="Ej: 09..."
+                               value="@_customerSearchDocument"
+                               @oninput="OnCustomerSearchDocumentInput" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Apellido</label>
+                        <input class="field-input"
+                               type="text"
+                               placeholder="Buscar por apellido..."
+                               value="@_customerSearchLastName"
+                               @oninput="OnCustomerSearchLastNameInput" />
+                    </div>
+                    <div class="field-group" style="justify-content:flex-end;">
+                        <label class="field-label">&nbsp;</label>
+                        <button class="btn btn--primary" @onclick="() => LoadCustomerPageAsync(1)">
+                            <i class="ph ph-magnifying-glass"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results grid -->
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>RUC/Cédula</th>
+                                <th>Nombre</th>
+                                <th>Apellido</th>
+                                <th>Teléfono</th>
+                                <th>Dirección</th>
+                                <th class="align-center">Seleccionar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_customerPagedResult?.Items.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" style="text-align:center; padding:var(--spacing-xl); color:var(--color-text-muted);">
+                                        Sin resultados
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var customerModel in _customerPagedResult?.Items ?? [])
+                            {
+                                <tr class="modal-table-row @(_selectedCustomerRow?.CustomerId == customerModel.CustomerId ? "modal-table-row--selected" : "")"
+                                    @onclick="() => _selectedCustomerRow = customerModel"
+                                    @ondblclick="() => SelectCustomerAndClose(customerModel)">
+                                    <td class="font-mono">@customerModel.DocumentNumber</td>
+                                    <td>@customerModel.FirstName</td>
+                                    <td>@customerModel.LastName</td>
+                                    <td>@customerModel.Phone</td>
+                                    <td>@customerModel.Address</td>
+                                    <td class="align-center">
+                                        <button class="btn btn--primary btn--sm"
+                                                @onclick="() => SelectCustomerAndClose(customerModel)"
+                                                @onclick:stopPropagation>
+                                            <i class="ph ph-check"></i> Seleccionar
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Create customer toggle -->
+                <button class="section-toggle" @onclick="ToggleCreateCustomerSection">
+                    <span class="section-toggle-icon @(_isCreateCustomerSectionOpen ? "section-toggle-icon--open" : "")"><i class="ph ph-caret-down"></i></span>
+                    <i class="ph ph-plus"></i> Crear nuevo cliente
+                </button>
+
+                @if (_isCreateCustomerSectionOpen)
+                {
+                    <div class="create-form-section">
+                        <div class="form-grid form-grid-2" style="margin-bottom:var(--spacing-md);">
+                            <div class="field-group" style="grid-column: span 2;">
+                                <label class="field-label">RUC/Cédula *</label>
+                                <input class="field-input" placeholder="0999999999..." @bind="_newCustomer.DocumentNumber" />
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Nombre *</label>
+                                <input class="field-input" placeholder="Nombre" @bind="_newCustomer.FirstName" />
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Apellido *</label>
+                                <input class="field-input" placeholder="Apellido" @bind="_newCustomer.LastName" />
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Teléfono</label>
+                                <input class="field-input" placeholder="0999..." @bind="_newCustomer.Phone" />
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Correo Electrónico</label>
+                                <input class="field-input" type="email" placeholder="correo@ejemplo.com" @bind="_newCustomer.Email" />
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Ciudad</label>
+                                <input class="field-input" placeholder="Ej: Guayaquil" @bind="_newCustomer.City" />
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Dirección</label>
+                                <input class="field-input" placeholder="Dirección completa" @bind="_newCustomer.Address" />
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_createCustomerError))
+                        {
+                            <div class="alert alert--error" style="margin-bottom:var(--spacing-sm);"><i class="ph ph-warning-circle"></i> @_createCustomerError</div>
+                        }
+                        <button class="btn btn--success" @onclick="CreateCustomer" disabled="@_isSavingCustomer">
+                            @if (_isSavingCustomer) { <text><i class="ph ph-hourglass-high"></i> Guardando...</text> } else { <text><i class="ph ph-floppy-disk"></i> Guardar Cliente</text> }
+                        </button>
+                    </div>
+                }
+            </div>
+
+            <div class="modal-footer">
+                <div class="pagination">
+                    <button class="pagination-btn"
+                            disabled="@(_customerCurrentPage <= 1)"
+                            @onclick="() => LoadCustomerPageAsync(_customerCurrentPage - 1)"><i class="ph ph-caret-left"></i></button>
+
+                    @for (int pageIndex = 1; pageIndex <= (_customerPagedResult?.TotalPages ?? 1); pageIndex++)
+                    {
+                        var capturedPage = pageIndex;
+                        <button class="pagination-btn @(capturedPage == _customerCurrentPage ? "pagination-btn--active" : "")"
+                                @onclick="() => LoadCustomerPageAsync(capturedPage)">
+                            @capturedPage
+                        </button>
+                    }
+
+                    <button class="pagination-btn"
+                            disabled="@(_customerCurrentPage >= (_customerPagedResult?.TotalPages ?? 1))"
+                            @onclick="() => LoadCustomerPageAsync(_customerCurrentPage + 1)"><i class="ph ph-caret-right"></i></button>
+                </div>
+                <span class="pagination-info">
+                    @(_customerPagedResult?.TotalCount ?? 0) resultados
+                    · Página @_customerCurrentPage de @(_customerPagedResult?.TotalPages ?? 1)
+                </span>
+                <button class="btn btn--ghost" @onclick="CloseCustomerModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ══ MODAL: PRODUCT SEARCH ════════════════════════════════════════════ -->
+@if (_isProductModalOpen)
+{
+    <div class="modal-overlay" @onclick="CloseProductModal">
+        <div class="modal-box" @onclick:stopPropagation>
+
+            <div class="modal-header">
+                <span class="modal-title"><i class="ph ph-package"></i> Buscar Producto</span>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseProductModal"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="modal-search-bar" style="grid-template-columns: 120px 1fr auto;">
+                    <div class="field-group">
+                        <label class="field-label">ID Producto</label>
+                        <input class="field-input field-input--numeric"
+                               type="number"
+                               placeholder="Ej: 3"
+                               value="@(_productSearchId?.ToString() ?? "")"
+                               @oninput="OnProductSearchIdInput" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Nombre</label>
+                        <input class="field-input"
+                               type="text"
+                               placeholder="Buscar por nombre..."
+                               value="@_productSearchName"
+                               @oninput="OnProductSearchNameInput" />
+                    </div>
+                    <div class="field-group" style="justify-content:flex-end;">
+                        <label class="field-label">&nbsp;</label>
+                        <button class="btn btn--primary" @onclick="() => LoadProductPageAsync(1)">
+                            <i class="ph ph-magnifying-glass"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th class="align-right">Precio</th>
+                                <th class="align-right">Stock</th>
+                                <th class="align-center">Seleccionar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_productPagedResult?.Items.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding:var(--spacing-xl); color:var(--color-text-muted);">
+                                        Sin resultados
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var productModel in _productPagedResult?.Items ?? [])
+                            {
+                                var outOfStock = productModel.Stock <= 0;
+                                <tr class="modal-table-row @(_selectedProductRow?.ProductId == productModel.ProductId ? "modal-table-row--selected" : "") @(outOfStock ? "modal-table-row--disabled" : "")"
+                                    @onclick="() => _selectedProductRow = productModel"
+                                    @ondblclick="() => SelectProductAndClose(productModel)">
+                                    <td class="font-mono">
+                                        @productModel.ProductId
+                                    </td>
+                                    <td>
+                                        @productModel.Name
+                                        @if (outOfStock)
+                                        {
+                                            <span class="badge-agotado">AGOTADO</span>
+                                        }
+                                    </td>
+                                    <td class="td-numeric">$@productModel.Price.ToString("F2")</td>
+                                    <td class="td-numeric">@productModel.Stock</td>
+                                    <td class="align-center">
+                                        <button class="btn @(outOfStock ? "btn--ghost" : "btn--primary") btn--sm"
+                                                disabled="@outOfStock"
+                                                @onclick="() => SelectProductAndClose(productModel)"
+                                                @onclick:stopPropagation>
+                                            @if (outOfStock) { <text><i class="ph ph-prohibit"></i> Sin stock</text> } else { <text><i class="ph ph-check"></i> Seleccionar</text> }
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="pagination">
+                    <button class="pagination-btn"
+                            disabled="@(_productCurrentPage <= 1)"
+                            @onclick="() => LoadProductPageAsync(_productCurrentPage - 1)"><i class="ph ph-caret-left"></i></button>
+
+                    @for (int pageIndex = 1; pageIndex <= (_productPagedResult?.TotalPages ?? 1); pageIndex++)
+                    {
+                        var capturedPage = pageIndex;
+                        <button class="pagination-btn @(capturedPage == _productCurrentPage ? "pagination-btn--active" : "")"
+                                @onclick="() => LoadProductPageAsync(capturedPage)">
+                            @capturedPage
+                        </button>
+                    }
+
+                    <button class="pagination-btn"
+                            disabled="@(_productCurrentPage >= (_productPagedResult?.TotalPages ?? 1))"
+                            @onclick="() => LoadProductPageAsync(_productCurrentPage + 1)"><i class="ph ph-caret-right"></i></button>
+                </div>
+                <span class="pagination-info">
+                    @(_productPagedResult?.TotalCount ?? 0) resultados
+                    · Página @_productCurrentPage de @(_productPagedResult?.TotalPages ?? 1)
+                </span>
+                <button class="btn btn--ghost" @onclick="CloseProductModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ══ MODAL: SALE HISTORY ════════════════════════════════════════════════ -->
+@if (_isSaleHistoryModalOpen)
+{
+    <div class="modal-overlay" @onclick="CloseSaleHistoryModal">
+        <div class="modal-box modal-box--wide" @onclick:stopPropagation>
+
+            <div class="modal-header">
+                <span class="modal-title"><i class="ph ph-list-dashes"></i> Historial de Facturas</span>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseSaleHistoryModal"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="modal-search-bar" style="grid-template-columns: 120px 1fr auto;">
+                    <div class="field-group">
+                        <label class="field-label">Nº Factura</label>
+                        <input class="field-input field-input--numeric"
+                               type="number"
+                               placeholder="Ej: 1001"
+                               value="@(_saleSearchId?.ToString() ?? "")"
+                               @oninput="OnSaleSearchIdInput" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Nombre Cliente</label>
+                        <input class="field-input"
+                               type="text"
+                               placeholder="Buscar por nombre..."
+                               value="@_saleSearchCustomerName"
+                               @oninput="OnSaleSearchNameInput" />
+                    </div>
+                    <div class="field-group" style="justify-content:flex-end;">
+                        <label class="field-label">&nbsp;</label>
+                        <button class="btn btn--primary" @onclick="() => LoadSaleHistoryPageAsync(1)">
+                            <i class="ph ph-magnifying-glass"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="align-right">Nº</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th class="align-right">Subtotal</th>
+                                <th class="align-right">IVA</th>
+                                <th class="align-right">Total</th>
+                                <th class="align-center">PDF</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_saleHistoryPagedResult?.Items.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="7" style="text-align:center; padding:var(--spacing-xl); color:var(--color-text-muted);">
+                                        Sin resultados
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var saleModel in _saleHistoryPagedResult?.Items ?? [])
+                            {
+                                <tr class="modal-table-row">
+                                    <td class="td-numeric">#@saleModel.SaleId.ToString("D6")</td>
+                                    <td>@saleModel.CustomerName</td>
+                                    <td>@saleModel.SaleDate.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="td-numeric">$@saleModel.Subtotal.ToString("F2")</td>
+                                    <td class="td-numeric">$@saleModel.TaxAmount.ToString("F2")</td>
+                                    <td class="td-numeric">$@saleModel.Total.ToString("F2")</td>
+                                    <td class="align-center">
+                                        <button class="btn btn--ghost btn--sm"
+                                                @onclick="() => PreviewPdfAsync(saleModel.SaleId)">
+                                            <i class="ph ph-file-pdf"></i> Ver PDF
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="pagination">
+                    <button class="pagination-btn"
+                            disabled="@(_saleHistoryCurrentPage <= 1)"
+                            @onclick="() => LoadSaleHistoryPageAsync(_saleHistoryCurrentPage - 1)"><i class="ph ph-caret-left"></i></button>
+
+                    @for (int pageIndex = 1; pageIndex <= (_saleHistoryPagedResult?.TotalPages ?? 1); pageIndex++)
+                    {
+                        var capturedPage = pageIndex;
+                        <button class="pagination-btn @(capturedPage == _saleHistoryCurrentPage ? "pagination-btn--active" : "")"
+                                @onclick="() => LoadSaleHistoryPageAsync(capturedPage)">
+                            @capturedPage
+                        </button>
+                    }
+
+                    <button class="pagination-btn"
+                            disabled="@(_saleHistoryCurrentPage >= (_saleHistoryPagedResult?.TotalPages ?? 1))"
+                            @onclick="() => LoadSaleHistoryPageAsync(_saleHistoryCurrentPage + 1)"><i class="ph ph-caret-right"></i></button>
+                </div>
+                <span class="pagination-info">
+                    @(_saleHistoryPagedResult?.TotalCount ?? 0) facturas
+                    · Página @_saleHistoryCurrentPage de @(_saleHistoryPagedResult?.TotalPages ?? 1)
+                </span>
+                <button class="btn btn--ghost" @onclick="CloseSaleHistoryModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ══ MODAL: PDF PREVIEW ══════════════════════════════════════════════ -->
+@if (_isPdfPreviewModalOpen)
+{
+    <div class="modal-overlay" @onclick="ClosePdfPreviewModal">
+        <div class="modal-box modal-box--wide" style="height: 88vh; display: flex; flex-direction: column;" @onclick:stopPropagation>
+            <div class="modal-header">
+                <span class="modal-title"><i class="ph ph-file-pdf"></i> Vista Previa de Factura</span>
+                <div style="display:flex; gap:var(--spacing-sm);">
+                    <button class="btn btn--primary btn--sm" @onclick="DownloadCurrentPreviewPdf">
+                        <i class="ph ph-download-simple"></i> Descargar
+                    </button>
+                    <button class="btn btn--ghost btn--icon" @onclick="ClosePdfPreviewModal"><i class="ph ph-x"></i></button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding:0; overflow:hidden; flex:1;">
+                <iframe src="@_pdfPreviewUrl" style="width:100%; height:100%; border:none;"></iframe>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ══ CUSTOM CONFIRM MODAL ══════════════════════════════════════════════ -->
+<ConfirmModal @ref="_confirmModal" />
+
+@code {
+
+    // ── Confirm modal ref ────────────────────────────────────────────────
+    private ConfirmModal _confirmModal = default!;
+
+    // ── Invoice state ───────────────────────────────────────────────────
+    private int                  _nextInvoiceNumber = 1;
+    private CustomerModel?       _selectedCustomer;
+    private ProductModel?        _selectedProduct;
+    private int                  _selectedQuantity  = 1;
+    private List<SaleDetailModel> _saleDetails      = [];
+    private string               _errorMessage      = string.Empty;
+    private bool                 _isProcessing      = false;
+    private string               _selectedPaymentType = "Cash";
+    private Timer?               _invoiceRefreshTimer;
+
+    // ── PDF Preview ─────────────────────────────────────────────────────
+    private bool   _isPdfPreviewModalOpen = false;
+    private string _pdfPreviewUrl         = string.Empty;
+    private string _pdfPreviewBase64      = string.Empty;
+    private string _pdfPreviewFileName    = string.Empty;
+
+    // Computed totals (reactive properties)
+    private decimal _calculatedSubtotal => _saleDetails.Sum(d => d.Subtotal);
+    private decimal _calculatedTax      => Math.Round(_calculatedSubtotal * 0.12m, 2);
+    private decimal _calculatedTotal    => _calculatedSubtotal + _calculatedTax;
+
+    // ── Customer modal state ────────────────────────────────────────────
+    private bool                          _isCustomerModalOpen        = false;
+    private string                        _customerSearchDocument     = string.Empty;
+    private string                        _customerSearchLastName     = string.Empty;
+    private int                           _customerCurrentPage        = 1;
+    private PagedResultModel<CustomerModel>? _customerPagedResult     = null;
+    private CustomerModel?                _selectedCustomerRow        = null;
+    private bool                          _isCreateCustomerSectionOpen = false;
+    private CreateCustomerModel           _newCustomer                = new();
+    private string                        _createCustomerError        = string.Empty;
+    private bool                          _isSavingCustomer           = false;
+
+    // ── Product modal state ─────────────────────────────────────────────
+    private bool                          _isProductModalOpen  = false;
+    private int?                          _productSearchId     = null;
+    private string                        _productSearchName   = string.Empty;
+    private int                           _productCurrentPage  = 1;
+    private PagedResultModel<ProductModel>? _productPagedResult = null;
+    private ProductModel?                 _selectedProductRow  = null;
+
+    // ── Sale history modal state ────────────────────────────────────────
+    private bool                      _isSaleHistoryModalOpen      = false;
+    private int?                      _saleSearchId                = null;
+    private string                    _saleSearchCustomerName      = string.Empty;
+    private int                       _saleHistoryCurrentPage      = 1;
+    private PagedResultModel<SaleModel>? _saleHistoryPagedResult   = null;
+
+    // ── Lifecycle ───────────────────────────────────────────────────────
+
+    protected override async Task OnInitializedAsync()
+    {
+        _nextInvoiceNumber = await SaleApiService.GetNextInvoiceNumberAsync();
+
+        // Refrescar el número de factura cada 15 segundos
+        _invoiceRefreshTimer = new Timer(15000);
+        _invoiceRefreshTimer.Elapsed += async (sender, e) => {
+            var latest = await SaleApiService.GetNextInvoiceNumberAsync();
+            if(latest != _nextInvoiceNumber)
+            {
+                _nextInvoiceNumber = latest;
+                await InvokeAsync(StateHasChanged);
+            }
+        };
+        _invoiceRefreshTimer.AutoReset = true;
+        _invoiceRefreshTimer.Enabled = true;
+    }
+
+    public void Dispose() 
+    { 
+        _invoiceRefreshTimer?.Stop();
+        _invoiceRefreshTimer?.Dispose();
+    }
+
+    // ── Set quantity to max stock (Fetch latest from API) ────────────────
+
+    private async Task SetMaxQuantitySelectionAsync()
+    {
+        if (_selectedProduct is null) return;
+        
+        var latest = await ProductApiService.GetByIdAsync(_selectedProduct.ProductId);
+        if (latest is not null)
+        {
+            _selectedProduct.Stock = latest.Stock;
+            _selectedQuantity      = latest.Stock;
+            if(_selectedQuantity < 1 && latest.Stock > 0) _selectedQuantity = 1;
+        }
+        else
+        {
+            _errorMessage = "No se pudo actualizar el stock del producto seleccionado.";
+        }
+    }
+
+    private async Task SetMaxQuantityDetailAsync(SaleDetailModel detail)
+    {
+        var latest = await ProductApiService.GetByIdAsync(detail.ProductId);
+        if (latest is not null)
+        {
+            detail.MaxStock = latest.Stock;
+            detail.Quantity = latest.Stock;
+            StateHasChanged();
+        }
+        else
+        {
+            _errorMessage = $"No se pudo actualizar el stock de '{detail.ProductName}'.";
+        }
+    }
+
+    // ── Add product to sale detail ──────────────────────────────────────
+
+    private void AddProductToSale()
+    {
+        _errorMessage = string.Empty;
+
+        if (_selectedProduct is null)
+        {
+            _errorMessage = "Debe seleccionar un producto.";
+            return;
+        }
+
+        if (_selectedProduct.Stock <= 0)
+        {
+            _errorMessage = $"El producto '{_selectedProduct.Name}' no tiene stock disponible.";
+            return;
+        }
+
+        if (_selectedQuantity <= 0)
+        {
+            _errorMessage = "La cantidad debe ser mayor a cero.";
+            return;
+        }
+
+        if (_selectedQuantity > _selectedProduct.Stock)
+        {
+            _errorMessage = $"Stock insuficiente. Disponible: {_selectedProduct.Stock} unidades.";
+            return;
+        }
+
+        var existingDetail = _saleDetails
+            .FirstOrDefault(d => d.ProductId == _selectedProduct.ProductId);
+
+        if (existingDetail is not null)
+        {
+            var newTotalQuantity = existingDetail.Quantity + _selectedQuantity;
+            if (newTotalQuantity > _selectedProduct.Stock)
+            {
+                _errorMessage = $"Stock insuficiente. Ya tienes {existingDetail.Quantity} en el detalle. Stock disponible: {_selectedProduct.Stock}.";
+                return;
+            }
+            existingDetail.Quantity += _selectedQuantity;
+        }
+        else
+        {
+            _saleDetails.Add(new SaleDetailModel
+            {
+                ProductId   = _selectedProduct.ProductId,
+                ProductName = _selectedProduct.Name,
+                UnitPrice   = _selectedProduct.Price,
+                Quantity    = _selectedQuantity,
+                MaxStock    = _selectedProduct.Stock
+            });
+        }
+
+        _selectedProduct  = null;
+        _selectedQuantity = 1;
+    }
+
+    // ── Remove detail row ───────────────────────────────────────────────
+
+    private async Task ConfirmRemoveDetail(SaleDetailModel saleDetailModel)
+    {
+        var confirmed = await _confirmModal.ShowAsync(
+            message:     $"¿Desea eliminar '{saleDetailModel.ProductName}' del detalle de venta?",
+            title:       "Eliminar Producto",
+            confirmText: "Sí, eliminar");
+
+        if (confirmed)
+            _saleDetails.Remove(saleDetailModel);
+    }
+
+    // ── Create sale (invoice) ───────────────────────────────────────────
+
+    private async Task CreateSale()
+    {
+        _errorMessage = string.Empty;
+
+        if (_selectedCustomer is null)
+        {
+            _errorMessage = "Debe seleccionar un cliente.";
+            return;
+        }
+
+        if (_saleDetails.Count == 0)
+        {
+            _errorMessage = "Debe agregar al menos un producto al detalle.";
+            return;
+        }
+
+        // ── Validate stock for every detail line before sending ──────────
+        foreach (var detail in _saleDetails)
+        {
+            if (detail.MaxStock <= 0)
+            {
+                _errorMessage = $"El producto '{detail.ProductName}' no tiene stock disponible. Elimínelo del detalle.";
+                return;
+            }
+
+            if (detail.Quantity <= 0)
+            {
+                _errorMessage = $"La cantidad de '{detail.ProductName}' debe ser mayor a cero.";
+                return;
+            }
+
+            if (detail.Quantity > detail.MaxStock)
+            {
+                _errorMessage = $"Stock insuficiente para '{detail.ProductName}'. " +
+                                $"Solicitado: {detail.Quantity} — Disponible: {detail.MaxStock}.";
+                return;
+            }
+        }
+
+        _isProcessing = true;
+
+        var createSaleModel = new CreateSaleModel
+        {
+            CustomerId  = _selectedCustomer.CustomerId,
+            PaymentType = _selectedPaymentType,
+            Details     = _saleDetails.Select(d => new CreateSaleDetailModel
+            {
+                ProductId = d.ProductId,
+                Quantity  = d.Quantity
+            }).ToList()
+        };
+
+        var savedSale = await SaleApiService.CreateAsync(createSaleModel);
+
+        if (savedSale is not null)
+        {
+            var pdfBytes = await SaleApiService.GetPdfAsync(savedSale.SaleId);
+            if (pdfBytes is not null)
+            {
+                _pdfPreviewBase64      = Convert.ToBase64String(pdfBytes);
+                _pdfPreviewUrl         = $"data:application/pdf;base64,{_pdfPreviewBase64}";
+                _pdfPreviewFileName    = $"Factura_{savedSale.SaleId:D6}.pdf";
+                _isPdfPreviewModalOpen = true;
+            }
+
+            // Reset form and advance invoice number
+            _selectedCustomer  = null;
+            _selectedProduct   = null;
+            _saleDetails       = [];
+            _selectedQuantity  = 1;
+            _nextInvoiceNumber = await SaleApiService.GetNextInvoiceNumberAsync();
+        }
+        else
+        {
+            _errorMessage = !string.IsNullOrEmpty(SaleApiService.LastErrorMessage) 
+                ? SaleApiService.LastErrorMessage 
+                : "Error al crear la factura. Intente nuevamente.";
+        }
+
+        _isProcessing = false;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+
+    private async Task PreviewPdfAsync(int saleId)
+    {
+        var pdfBytes = await SaleApiService.GetPdfAsync(saleId);
+        if (pdfBytes is null) return;
+
+        _pdfPreviewBase64      = Convert.ToBase64String(pdfBytes);
+        _pdfPreviewUrl         = $"data:application/pdf;base64,{_pdfPreviewBase64}";
+        _pdfPreviewFileName    = $"Factura_{saleId:D6}.pdf";
+        _isPdfPreviewModalOpen = true;
+    }
+
+    private void ClosePdfPreviewModal()
+    {
+        _isPdfPreviewModalOpen = false;
+        _pdfPreviewUrl         = string.Empty;
+        _pdfPreviewBase64      = string.Empty;
+    }
+
+    private async Task DownloadCurrentPreviewPdf()
+    {
+        if (!string.IsNullOrEmpty(_pdfPreviewBase64))
+        {
+            await JSRuntime.InvokeVoidAsync("downloadPdf", _pdfPreviewBase64, _pdfPreviewFileName);
+        }
+    }
+
+    // ══ CUSTOMER MODAL ══════════════════════════════════════════════════
+
+    private async Task OpenCustomerModal()
+    {
+        _customerSearchDocument = string.Empty;
+        _customerSearchLastName = string.Empty;
+        _selectedCustomerRow    = _selectedCustomer;
+        _isCreateCustomerSectionOpen = false;
+        _createCustomerError    = string.Empty;
+        _newCustomer            = new CreateCustomerModel();
+        _isCustomerModalOpen    = true;
+        await LoadCustomerPageAsync(1);
+    }
+
+    private void CloseCustomerModal() => _isCustomerModalOpen = false;
+
+    private void OnCustomerSearchDocumentInput(ChangeEventArgs e)
+    {
+        _customerSearchDocument = e.Value?.ToString() ?? string.Empty;
+        _customerSearchLastName = string.Empty; // Document takes priority: clear text filter
+    }
+
+    private void OnCustomerSearchLastNameInput(ChangeEventArgs e)
+    {
+        _customerSearchLastName = e.Value?.ToString() ?? string.Empty;
+        _customerSearchDocument = string.Empty; // Text search: clear document filter
+    }
+
+    private async Task LoadCustomerPageAsync(int page)
+    {
+        _customerCurrentPage = page;
+        _customerPagedResult = await CustomerApiService.SearchPagedAsync(
+            customerId:     null,
+            documentNumber: _customerSearchDocument,
+            lastName:       _customerSearchLastName,
+            page:           page,
+            pageSize:       10);
+    }
+
+    private void SelectCustomerAndClose(CustomerModel customerModel)
+    {
+        _selectedCustomer    = customerModel;
+        _isCustomerModalOpen = false;
+        _errorMessage        = string.Empty;
+    }
+
+    private void ToggleCreateCustomerSection()
+    {
+        _isCreateCustomerSectionOpen = !_isCreateCustomerSectionOpen;
+        _createCustomerError         = string.Empty;
+    }
+
+    private async Task CreateCustomer()
+    {
+        _createCustomerError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_newCustomer.DocumentNumber))
+        {
+            _createCustomerError = "El número de documento (RUC/Cédula) es obligatorio.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_newCustomer.FirstName))
+        {
+            _createCustomerError = "El nombre es obligatorio.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_newCustomer.LastName))
+        {
+            _createCustomerError = "El apellido es obligatorio.";
+            return;
+        }
+
+        _isSavingCustomer = true;
+
+        var savedCustomer = await CustomerApiService.CreateAsync(_newCustomer);
+
+        if (savedCustomer is not null)
+        {
+            _newCustomer                 = new CreateCustomerModel();
+            _isCreateCustomerSectionOpen = false;
+            await LoadCustomerPageAsync(1); // Refresh grid after creation
+        }
+        else
+        {
+            _createCustomerError = "Error al crear el cliente. Verifique los datos.";
+        }
+
+        _isSavingCustomer = false;
+    }
+
+    // ══ PRODUCT MODAL ══════════════════════════════════════════════════
+
+    private async Task OpenProductModal()
+    {
+        _productSearchId   = null;
+        _productSearchName = string.Empty;
+        _selectedProductRow = _selectedProduct;
+        _isProductModalOpen = true;
+        await LoadProductPageAsync(1);
+    }
+
+    private void CloseProductModal() => _isProductModalOpen = false;
+
+    private void OnProductSearchIdInput(ChangeEventArgs e)
+    {
+        _productSearchId   = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _productSearchName = string.Empty;
+    }
+
+    private void OnProductSearchNameInput(ChangeEventArgs e)
+    {
+        _productSearchName = e.Value?.ToString() ?? string.Empty;
+        _productSearchId   = null;
+    }
+
+    private async Task LoadProductPageAsync(int page)
+    {
+        _productCurrentPage = page;
+        _productPagedResult = await ProductApiService.SearchPagedAsync(
+            productId: _productSearchId,
+            name:      _productSearchName,
+            page:      page,
+            pageSize:  10);
+    }
+
+    private void SelectProductAndClose(ProductModel productModel)
+    {
+        _selectedProduct    = productModel;
+        _selectedQuantity   = 1;
+        _isProductModalOpen = false;
+        _errorMessage       = string.Empty;
+    }
+
+    // ══ SALE HISTORY MODAL ═════════════════════════════════════════════
+
+    private async Task OpenSaleHistoryModal()
+    {
+        _saleSearchId           = null;
+        _saleSearchCustomerName = string.Empty;
+        _isSaleHistoryModalOpen = true;
+        await LoadSaleHistoryPageAsync(1);
+    }
+
+    private void CloseSaleHistoryModal() => _isSaleHistoryModalOpen = false;
+
+    private void OnSaleSearchIdInput(ChangeEventArgs e)
+    {
+        _saleSearchId           = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        _saleSearchCustomerName = string.Empty;
+    }
+
+    private void OnSaleSearchNameInput(ChangeEventArgs e)
+    {
+        _saleSearchCustomerName = e.Value?.ToString() ?? string.Empty;
+        _saleSearchId           = null;
+    }
+
+    private async Task LoadSaleHistoryPageAsync(int page)
+    {
+        _saleHistoryCurrentPage  = page;
+        _saleHistoryPagedResult  = await SaleApiService.SearchPagedAsync(
+            saleId:       _saleSearchId,
+            customerName: _saleSearchCustomerName,
+            page:         page,
+            pageSize:     15);
+    }
+}

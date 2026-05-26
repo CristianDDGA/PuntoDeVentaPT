@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sistema de Punto de Venta - Gestión de ventas, clientes y productos" />
+    <title>Punto de Venta</title>
+    <base href="/" />
+    <link rel="preload" id="webassembly" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- App styles -->
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="PuntoVenta.Blazor.styles.css" rel="stylesheet" />
+    <script type="importmap"></script>
+</head>
+
+<body>
+    <script>
+        // Download PDF from a base-64 string
+        window.downloadPdf = (base64, fileName) => {
+            const bytes    = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            const blob     = new Blob([bytes], { type: 'application/pdf' });
+            const url      = URL.createObjectURL(blob);
+            const link     = document.createElement('a');
+            link.href      = url;
+            link.download  = fileName;
+            link.click();
+            URL.revokeObjectURL(url);
+        };
+
+        // Show a native confirmation dialog and return the boolean result
+        window.confirmDialog = (message) => confirm(message);
+    </script>
+
+    <div id="app">
+        <div class="app-loader">
+            <div class="loader-ring"></div>
+            <p class="loader-text">Cargando sistema...</p>
+        </div>
+    </div>
+
+
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+
+</html>

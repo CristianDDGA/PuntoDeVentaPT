@@ -1,0 +1,304 @@
+@page "/"
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject DashboardApiService DashboardApiService
+@inject NavigationManager   NavigationManager
+
+<PageTitle>Dashboard — Punto de Venta</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="flex-center" style="min-height:60vh; flex-direction:column; gap:var(--spacing-lg);">
+        <div class="loader-ring"></div>
+        <p class="text-muted">Cargando estadísticas...</p>
+    </div>
+}
+else if (_stats is null)
+{
+    <div class="alert alert--error">No se pudo cargar el dashboard. Verifique la conexión con la API.</div>
+}
+else
+{
+    <div class="section-gap">
+
+        <!-- ══ PAGE TITLE ══════════════════════════════════════════════ -->
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--spacing-md);">
+            <div>
+                <h1 style="font-size:var(--font-size-2xl); font-weight:var(--font-weight-bold); color:var(--color-text-primary); margin-bottom:4px; display:flex; align-items:center; gap:var(--spacing-sm);">
+                    <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"></path></svg>
+                    Dashboard
+                </h1>
+                <p style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">
+                    Resumen ejecutivo · Actualizado al @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+                </p>
+            </div>
+            <button class="btn btn--secondary" @onclick="RefreshAsync">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Actualizar
+            </button>
+        </div>
+
+        <!-- ══ KPI CARDS — ROW 1 ═══════════════════════════════════════ -->
+        <div class="kpi-grid">
+
+            <div class="kpi-card">
+                <div class="kpi-icon"><svg width="28" height="28" fill="none" stroke="var(--color-accent)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                <div class="kpi-body">
+                    <span class="kpi-label">Ingresos Hoy</span>
+                    <span class="kpi-value">$@_stats.TodayRevenue.ToString("N2")</span>
+                    <span class="kpi-sub">@_stats.TodaySaleCount factura(s)</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon"><svg width="28" height="28" fill="none" stroke="var(--color-accent)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                <div class="kpi-body">
+                    <span class="kpi-label">Ingresos del Mes</span>
+                    <span class="kpi-value">$@_stats.MonthRevenue.ToString("N2")</span>
+                    <span class="kpi-sub">@_stats.MonthSaleCount factura(s)</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon"><svg width="28" height="28" fill="none" stroke="var(--color-accent)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+                <div class="kpi-body">
+                    <span class="kpi-label">Total Facturas</span>
+                    <span class="kpi-value">@_stats.TotalSales.ToString("N0")</span>
+                    <span class="kpi-sub">Histórico completo</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon"><svg width="28" height="28" fill="none" stroke="var(--color-accent)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg></div>
+                <div class="kpi-body">
+                    <span class="kpi-label">Ingresos Totales</span>
+                    <span class="kpi-value">$@_stats.TotalRevenueAllTime.ToString("N2")</span>
+                    <span class="kpi-sub">Histórico acumulado</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon"><svg width="28" height="28" fill="none" stroke="var(--color-accent)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+                <div class="kpi-body">
+                    <span class="kpi-label">Clientes</span>
+                    <span class="kpi-value">@_stats.TotalCustomers.ToString("N0")</span>
+                    <span class="kpi-sub">Registrados</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon"><svg width="28" height="28" fill="none" stroke="var(--color-accent)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>
+                <div class="kpi-body">
+                    <span class="kpi-label">Productos</span>
+                    <span class="kpi-value">@_stats.TotalProducts.ToString("N0")</span>
+                    <span class="kpi-sub">En catálogo</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ══ CHARTS + TOP PRODUCTS ═══════════════════════════════════ -->
+        <div style="display:grid; grid-template-columns:1fr 380px; gap:var(--spacing-lg);">
+
+            <!-- Bar chart: monthly revenue -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg></span>
+                    <span class="card-title">Ingresos Mensuales (últimos 6 meses)</span>
+                </div>
+
+                @if (_stats.MonthlySummaries.Count == 0)
+                {
+                    <div class="empty-state"><div class="empty-state-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></div><p class="empty-state-text">Sin datos</p></div>
+                }
+                else
+                {
+                    var maxRevenue = _stats.MonthlySummaries.Max(m => m.Revenue);
+                    if (maxRevenue == 0) { maxRevenue = 1; }
+
+                    <div class="bar-chart">
+                        @foreach (var summary in _stats.MonthlySummaries)
+                        {
+                            var heightPct = (double)summary.Revenue / (double)maxRevenue * 100;
+                            <div class="bar-chart-col">
+                                <span class="bar-chart-amount">$@FormatCompact(summary.Revenue)</span>
+                                <div class="bar-chart-bar-wrapper">
+                                    <div class="bar-chart-bar" style="height:@heightPct.ToString("F1")%;">
+                                        <div class="bar-chart-bar-glow"></div>
+                                    </div>
+                                </div>
+                                <span class="bar-chart-label">@summary.MonthLabel</span>
+                                <span class="bar-chart-count">@summary.SaleCount vta(s)</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Top products -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg></span>
+                    <span class="card-title">Top Productos (30 días)</span>
+                </div>
+
+                @if (_stats.TopProducts.Count == 0)
+                {
+                    <div class="empty-state"><div class="empty-state-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div><p class="empty-state-text">Sin ventas en los últimos 30 días</p></div>
+                }
+                else
+                {
+                    var maxUnits = _stats.TopProducts.Max(p => p.TotalUnits);
+                    if (maxUnits == 0) { maxUnits = 1; }
+
+                    <div class="top-products-list">
+                        @for (int rankIndex = 0; rankIndex < _stats.TopProducts.Count; rankIndex++)
+                        {
+                            var product = _stats.TopProducts[rankIndex];
+                            var barWidth = (double)product.TotalUnits / maxUnits * 100;
+                            var rankStr  = rankIndex switch { 0 => "1", 1 => "2", 2 => "3", _ => $"{rankIndex + 1}" };
+                            var rankClass = rankIndex switch { 0 => "rank-gold", 1 => "rank-silver", 2 => "rank-bronze", _ => "rank-normal" };
+
+                            <div class="top-product-row">
+                                <div class="top-product-rank @rankClass">@rankStr</div>
+                                <div class="top-product-body">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                        <span class="top-product-name">@product.ProductName</span>
+                                        <span class="top-product-units font-mono">@product.TotalUnits uds.</span>
+                                    </div>
+                                    <div class="top-product-bar-track">
+                                        <div class="top-product-bar-fill" style="width:@barWidth.ToString("F1")%;"></div>
+                                    </div>
+                                    <span class="top-product-revenue">$@product.TotalRevenue.ToString("N2")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+        </div>
+
+        <!-- ══ RECENT SALES TABLE ═══════════════════════════════════════ -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></span>
+                <span class="card-title">Últimas Facturas</span>
+                <button class="btn btn--ghost btn--sm ml-auto" @onclick="GoToHistory">
+                    Ver historial completo →
+                </button>
+            </div>
+
+            @if (_stats.RecentSales.Count == 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-state-icon"><svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+                    <p class="empty-state-text">No hay facturas registradas.</p>
+                </div>
+            }
+            else
+            {
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="align-right">Nº Factura</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th class="align-right">Total</th>
+                                <th class="align-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var recentSale in _stats.RecentSales)
+                            {
+                                var isToday = recentSale.SaleDate.Date == DateTime.Today;
+                                <tr>
+                                    <td class="td-numeric">#@recentSale.SaleId.ToString("D6")</td>
+                                    <td>@recentSale.CustomerName</td>
+                                    <td>@recentSale.SaleDate.ToString("dd/MM/yyyy")</td>
+                                    <td class="font-mono text-muted">@recentSale.SaleDate.ToString("HH:mm")</td>
+                                    <td class="td-numeric" style="color:var(--color-accent); font-weight:var(--font-weight-semibold);">
+                                        $@recentSale.Total.ToString("N2")
+                                    </td>
+                                    <td class="align-center">
+                                        @if (recentSale.Status == "Pagado")
+                                        {
+                                            <span class="badge badge--success">Pagado</span>
+                                        }
+                                        else if (recentSale.Status == "Anulado")
+                                        {
+                                            <span class="badge badge--error">Anulado</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge--warning">@recentSale.Status</span>
+                                        }
+                                        
+                                        @if (isToday)
+                                        {
+                                            <span class="status-badge status-badge--today" style="margin-left:4px; font-size:10px; padding:2px 4px;">Hoy</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+    </div>
+}
+
+@implements IDisposable
+@using System.Timers
+
+@code {
+    private DashboardStatsModel? _stats     = null;
+    private bool                 _isLoading = true;
+    private Timer?               _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        
+        // Configurar auto-refresco cada 30 segundos
+        _refreshTimer = new Timer(30000);
+        _refreshTimer.Elapsed += async (sender, e) => await AutoRefreshAsync();
+        _refreshTimer.AutoReset = true;
+        _refreshTimer.Enabled = true;
+    }
+
+    private async Task RefreshAsync()
+    {
+        _isLoading = true;
+        _stats     = await DashboardApiService.GetStatsAsync();
+        _isLoading = false;
+    }
+
+    private async Task AutoRefreshAsync()
+    {
+        // Solo refresca si no estamos ya cargando y si la página está activa
+        var newStats = await DashboardApiService.GetStatsAsync();
+        if (newStats != null)
+        {
+            _stats = newStats;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void GoToHistory()
+        => NavigationManager.NavigateTo("/historial");
+
+    public void Dispose()
+    {
+        _refreshTimer?.Stop();
+        _refreshTimer?.Dispose();
+    }
+
+    /// <summary>Formats large numbers compactly: 1 250 → "1.3K", 12 500 → "12.5K".</summary>
+    private static string FormatCompact(decimal value)
+        => value >= 1_000 ? $"{value / 1_000:F1}K" : value.ToString("F0");
+}
