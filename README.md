@@ -88,7 +88,29 @@ El código del proyecto no está escrito en un solo archivo gigante, sino que es
 Dado que el sistema tiene una arquitectura separada, necesitas encender **dos motores** simultáneamente para que funcione (el Servidor y las Pantallas).
 
 ### Requisitos Previos:
-Tener instalado el motor de Microsoft (.NET 8 SDK) y una Base de Datos (SQL Server).
+* Tener instalado el SDK de **.NET 8**.
+* Tener una instancia de **SQL Server** activa (local o remota).
+
+### Paso 0: Configurar e Inicializar la Base de Datos (Migraciones)
+Antes de ejecutar el sistema por primera vez, debes configurar la base de datos y aplicar las migraciones para generar las tablas correspondientes:
+
+1. **Configurar la cadena de conexión:**
+   Abre el archivo [PuntoVenta.API/appsettings.json](PuntoVenta.API/appsettings.json) y modifica la propiedad `DefaultConnection` para que apunte a tu servidor de base de datos SQL Server:
+   ```json
+   "ConnectionStrings": {
+     "DefaultConnection": "Server=TU_SERVIDOR_SQL;Database=PuntoVentaDB;Trusted_Connection=True;TrustServerCertificate=True;"
+   }
+   ```
+2. **Instalar la herramienta CLI de Entity Framework Core (si aún no la tienes):**
+   ```bash
+   dotnet tool install --global dotnet-ef
+   ```
+3. **Aplicar las migraciones para crear la base de datos y las tablas:**
+   Abre una terminal en la raíz del proyecto y ejecuta:
+   ```bash
+   dotnet ef database update --project PuntoVenta.Infrastructure --startup-project PuntoVenta.API
+   ```
+   *(Alternativa en Visual Studio: Ejecuta `Update-Database -Project PuntoVenta.Infrastructure -StartupProject PuntoVenta.API` desde la Consola del Administrador de Paquetes).*
 
 ### Paso 1: Encender el Servidor Backend (API)
 Este es el cerebro central. Sin él, las pantallas no tienen datos.
