@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using PuntoVenta.Application.Constants;
 using PuntoVenta.Infrastructure.Persistence;
 
 namespace PuntoVenta.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = AppRoles.Admin)]
 public class EstresController : ControllerBase
 {
     private readonly DataSeedingService _seedingService;

@@ -49,14 +49,21 @@ public class CustomerService : ICustomerService
         return savedCustomer.Adapt<CustomerDto>();
     }
 
+    public async Task<bool> ActivateAsync(int customerId)
+        => await _customerRepository.ActivateAsync(customerId);
+
+    public async Task<bool> DeactivateAsync(int customerId)
+        => await _customerRepository.DeactivateAsync(customerId);
+
     public async Task<PagedResult<CustomerDto>> SearchPagedAsync(
         int?    customerId,
         string? documentNumber,
         string? lastName,
         int     page,
-        int     pageSize)
+        int     pageSize,
+        bool    onlyActive = false)
     {
-        var (items, totalCount) = await _customerRepository.SearchPagedAsync(customerId, documentNumber, lastName, page, pageSize);
+        var (items, totalCount) = await _customerRepository.SearchPagedAsync(customerId, documentNumber, lastName, page, pageSize, onlyActive);
         var customerDtos        = items.Adapt<IEnumerable<CustomerDto>>();
         return PagedResult<CustomerDto>.Create(customerDtos, totalCount, page, pageSize);
     }

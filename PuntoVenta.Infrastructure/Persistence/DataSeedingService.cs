@@ -39,6 +39,7 @@ public class DataSeedingService
         var clienteDirecciones = new string[100000];
         var clienteCiudades = new string[100000];
         var clienteEmails = new string[100000];
+        var clienteEstados = Enumerable.Repeat(true, 100000).ToArray();
 
         for (int i = 0; i < 100000; i++)
         {
@@ -58,6 +59,7 @@ public class DataSeedingService
         var productoNombres = new string[100000];
         var productoPrecios = new decimal[100000];
         var productoStocks = new int[100000];
+        var productoEstados = Enumerable.Repeat(true, 100000).ToArray();
 
         for (int i = 0; i < 100000; i++)
         {
@@ -152,7 +154,7 @@ public class DataSeedingService
                     {
                         command.Transaction = transaction;
                         command.ArrayBindCount = 100000;
-                        command.CommandText = @"INSERT INTO ""Customers"" (""CustomerId"", ""DocumentNumber"", ""FirstName"", ""LastName"", ""Phone"", ""Address"", ""City"", ""Email"") VALUES (:CustomerId, :DocumentNumber, :FirstName, :LastName, :Phone, :Address, :City, :Email)";
+                        command.CommandText = @"INSERT INTO ""Customers"" (""CustomerId"", ""DocumentNumber"", ""FirstName"", ""LastName"", ""Phone"", ""Address"", ""City"", ""Email"", ""IsActive"") VALUES (:CustomerId, :DocumentNumber, :FirstName, :LastName, :Phone, :Address, :City, :Email, :IsActive)";
                         command.Parameters.Add(new OracleParameter("CustomerId", OracleDbType.Int32) { Value = clienteIds });
                         command.Parameters.Add(new OracleParameter("DocumentNumber", OracleDbType.Varchar2) { Value = clienteDocumentos });
                         command.Parameters.Add(new OracleParameter("FirstName", OracleDbType.Varchar2) { Value = clienteNombres });
@@ -161,6 +163,7 @@ public class DataSeedingService
                         command.Parameters.Add(new OracleParameter("Address", OracleDbType.Varchar2) { Value = clienteDirecciones });
                         command.Parameters.Add(new OracleParameter("City", OracleDbType.Varchar2) { Value = clienteCiudades });
                         command.Parameters.Add(new OracleParameter("Email", OracleDbType.Varchar2) { Value = clienteEmails });
+                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Boolean) { Value = clienteEstados });
                         await command.ExecuteNonQueryAsync();
                     }
 
@@ -169,11 +172,12 @@ public class DataSeedingService
                     {
                         command.Transaction = transaction;
                         command.ArrayBindCount = 100000;
-                        command.CommandText = @"INSERT INTO ""Products"" (""ProductId"", ""Name"", ""Price"", ""Stock"") VALUES (:ProductId, :Name, :Price, :Stock)";
+                        command.CommandText = @"INSERT INTO ""Products"" (""ProductId"", ""Name"", ""Price"", ""Stock"", ""IsActive"") VALUES (:ProductId, :Name, :Price, :Stock, :IsActive)";
                         command.Parameters.Add(new OracleParameter("ProductId", OracleDbType.Int32) { Value = productoIds });
                         command.Parameters.Add(new OracleParameter("Name", OracleDbType.Varchar2) { Value = productoNombres });
                         command.Parameters.Add(new OracleParameter("Price", OracleDbType.Decimal) { Value = productoPrecios });
                         command.Parameters.Add(new OracleParameter("Stock", OracleDbType.Int32) { Value = productoStocks });
+                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Boolean) { Value = productoEstados });
                         await command.ExecuteNonQueryAsync();
                     }
 

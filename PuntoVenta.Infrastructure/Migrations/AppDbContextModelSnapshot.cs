@@ -52,6 +52,9 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("NVARCHAR2(100)");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("BOOLEAN");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -80,6 +83,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                             DocumentNumber = "1850123456",
                             Email = "juan.perez@gmail.com",
                             FirstName = "Juan",
+                            IsActive = true,
                             LastName = "Pérez",
                             Phone = "0999999991"
                         },
@@ -91,9 +95,43 @@ namespace PuntoVenta.Infrastructure.Migrations
                             DocumentNumber = "1720123456",
                             Email = "maria.lopez@gmail.com",
                             FirstName = "María",
+                            IsActive = true,
                             LastName = "López",
                             Phone = "0999999992"
                         });
+                });
+
+            modelBuilder.Entity("PuntoVenta.Domain.Entities.ErrorLog", b =>
+                {
+                    b.Property<int>("ErrorLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ErrorLogId"));
+
+                    b.Property<string>("HttpMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("NVARCHAR2(20)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("NVARCHAR2(500)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TIMESTAMP(7)");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(250)
+                        .HasColumnType("NVARCHAR2(250)");
+
+                    b.Property<string>("StackTrace")
+                        .HasMaxLength(4000)
+                        .HasColumnType("NCLOB");
+
+                    b.HasKey("ErrorLogId");
+
+                    b.ToTable("ErrorLogs", (string)null);
                 });
 
             modelBuilder.Entity("PuntoVenta.Domain.Entities.Product", b =>
@@ -103,6 +141,9 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .HasColumnType("NUMBER(10)");
 
                     OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("BOOLEAN");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -123,6 +164,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                         new
                         {
                             ProductId = 1,
+                            IsActive = true,
                             Name = "Teclado 1",
                             Price = 1.50m,
                             Stock = 50
@@ -130,6 +172,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                         new
                         {
                             ProductId = 2,
+                            IsActive = true,
                             Name = "Proyecto Epson",
                             Price = 0.80m,
                             Stock = 100
@@ -137,10 +180,35 @@ namespace PuntoVenta.Infrastructure.Migrations
                         new
                         {
                             ProductId = 3,
+                            IsActive = true,
                             Name = "Laptop HP ",
                             Price = 1.20m,
                             Stock = 30
                         });
+                });
+
+            modelBuilder.Entity("PuntoVenta.Domain.Entities.Role", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoleId"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("BOOLEAN");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("NVARCHAR2(100)");
+
+                    b.HasKey("RoleId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("PuntoVenta.Domain.Entities.Sale", b =>
@@ -208,6 +276,85 @@ namespace PuntoVenta.Infrastructure.Migrations
                     b.ToTable("SaleDetails", (string)null);
                 });
 
+            modelBuilder.Entity("PuntoVenta.Domain.Entities.StockMovement", b =>
+                {
+                    b.Property<int>("StockMovementId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StockMovementId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TIMESTAMP(7)");
+
+                    b.Property<byte>("MovementType")
+                        .HasColumnType("NUMBER(3)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("NUMBER(10)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("NUMBER(10)");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(200)
+                        .HasColumnType("NVARCHAR2(200)");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("NUMBER(10)");
+
+                    b.HasKey("StockMovementId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("StockMovements", (string)null);
+                });
+
+            modelBuilder.Entity("PuntoVenta.Domain.Entities.User", b =>
+                {
+                    b.Property<int>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)");
+
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("NVARCHAR2(150)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("NVARCHAR2(150)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("BOOLEAN");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("NVARCHAR2(500)");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("NUMBER(10)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("NVARCHAR2(100)");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("Users", (string)null);
+                });
+
             modelBuilder.Entity("PuntoVenta.Domain.Entities.Sale", b =>
                 {
                     b.HasOne("PuntoVenta.Domain.Entities.Customer", "Customer")
@@ -234,6 +381,35 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("PuntoVenta.Domain.Entities.StockMovement", b =>
+                {
+                    b.HasOne("PuntoVenta.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PuntoVenta.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Product");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PuntoVenta.Domain.Entities.User", b =>
+                {
+                    b.HasOne("PuntoVenta.Domain.Entities.Role", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("PuntoVenta.Domain.Entities.Sale", b =>

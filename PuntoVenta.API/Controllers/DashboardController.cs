@@ -1,10 +1,13 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PuntoVenta.Application.Constants;
 using PuntoVenta.Application.Interfaces.Services;
 
 namespace PuntoVenta.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Seller}")]
 public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;

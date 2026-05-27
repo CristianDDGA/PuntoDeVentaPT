@@ -8,6 +8,8 @@ public interface ICustomerRepository
     Task<IEnumerable<Customer>> SearchByLastNameAsync(string lastName);
     Task<Customer?>             GetByIdAsync(int customerId);
     Task<Customer>              AddAsync(Customer customer);
+    Task<bool>                  ActivateAsync(int customerId);
+    Task<bool>                  DeactivateAsync(int customerId);
 
     /// <summary>
     /// Returns a paginated and optionally filtered list of customers.
@@ -18,5 +20,6 @@ public interface ICustomerRepository
         string? documentNumber,
         string? lastName,
         int     page,
-        int     pageSize);
+        int     pageSize,
+        bool    onlyActive = false);
 }

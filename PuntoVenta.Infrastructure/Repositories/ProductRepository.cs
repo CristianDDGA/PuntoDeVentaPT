@@ -37,6 +37,21 @@ public class ProductRepository : IProductRepository
         return newProduct;
     }
 
+    public async Task<bool> ActivateAsync(int productId)
+        => await UpdateIsActiveAsync(productId, true);
+
+    public async Task<bool> DeactivateAsync(int productId)
+        => await UpdateIsActiveAsync(productId, false);
+
+    private async Task<bool> UpdateIsActiveAsync(int productId, bool isActive)
+    {
+        var affectedRows = await _appDbContext.Products
+            .Where(product => product.ProductId == productId)
+            .ExecuteUpdateAsync(update => update.SetProperty(product => product.IsActive, isActive));
+
+        return affectedRows > 0;
+    }
+
     public async Task UpdateStockAsync(int productId, int newStock)
     {
         var existingProduct = await _appDbContext.Products
@@ -68,13 +83,17 @@ public class ProductRepository : IProductRepository
         string? name,
         int     page,
         int     pageSize,
-        bool    onlyInStock = false)
+        bool    onlyInStock = false,
+        bool    onlyActive = false)
     {
         var query = _appDbContext.Products.AsNoTracking();
 
         // Filtrar solo productos con stock disponible (para el modal de venta)
         if (onlyInStock)
             query = query.Where(product => product.Stock > 0);
+
+        if (onlyActive)
+            query = query.Where(product => product.IsActive);
 
         if (productId.HasValue)
         {

@@ -1,5 +1,7 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PuntoVenta.Application.Constants;
 using PuntoVenta.Application.DTOs.Customer;
 using PuntoVenta.Application.Interfaces.Services;
 
@@ -7,6 +9,7 @@ namespace PuntoVenta.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Seller}")]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService            _customerService;
@@ -65,6 +68,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] CreateCustomerDto createCustomerDto)
     {
         var validationResult = await _createCustomerValidator.ValidateAsync(createCustomerDto);
@@ -74,5 +78,21 @@ public class CustomersController : ControllerBase
 
         var savedCustomer = await _customerService.CreateAsync(createCustomerDto);
         return CreatedAtAction(nameof(GetById), new { customerId = savedCustomer.CustomerId }, savedCustomer);
+    }
+
+    [HttpPut("{customerId:int}/activate")]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Activate(int customerId)
+    {
+        var success = await _customerService.ActivateAsync(customerId);
+        return success ? NoContent() : NotFound($"Customer with id {customerId} not found.");
+    }
+
+    [HttpPut("{customerId:int}/deactivate")]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Deactivate(int customerId)
+    {
+        var success = await _customerService.DeactivateAsync(customerId);
+        return success ? NoContent() : NotFound($"Customer with id {customerId} not found.");
     }
 }

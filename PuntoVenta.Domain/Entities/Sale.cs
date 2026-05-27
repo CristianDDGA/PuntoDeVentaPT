@@ -14,7 +14,7 @@ public class Sale
     public decimal     Subtotal    { get; private set; }
     public decimal     TaxAmount   { get; private set; }
     public decimal     Total       { get; private set; }
-    public SaleStatus  Status      { get; private set; } = SaleStatus.Paid;
+    public SaleStatus  Status      { get; private set; } = SaleStatus.Draft;
 
     public Customer Customer { get; private set; } = null!;
 
@@ -45,24 +45,37 @@ public class Sale
             Subtotal    = subtotal,
             TaxAmount   = taxAmount,
             Total       = total,
-            Status      = SaleStatus.Paid, // Default to Paid, could be Pending later
+            Status      = SaleStatus.Draft,
             _details    = details
         };
     }
 
-    public void VoidSale()
+    public void ConfirmSale()
     {
-        if (Status == SaleStatus.Voided)
-            throw new DomainException("La factura ya se encuentra anulada.");
+        if (Status == SaleStatus.Confirmed)
+            throw new DomainException("La factura ya se encuentra confirmada.");
 
-        Status = SaleStatus.Voided;
+        if (Status == SaleStatus.Cancelled)
+            throw new DomainException("La factura ya se encuentra cancelada.");
+
+        Status = SaleStatus.Confirmed;
+    }
+
+    public void CancelSale()
+    {
+        if (Status == SaleStatus.Cancelled)
+            throw new DomainException("La factura ya se encuentra cancelada.");
+
+        Status = SaleStatus.Cancelled;
     }
 
     public void MarkAsPaid()
     {
-        if (Status == SaleStatus.Paid)
-            throw new DomainException("La factura ya se encuentra pagada.");
-            
-        Status = SaleStatus.Paid;
+        ConfirmSale();
+    }
+
+    public void VoidSale()
+    {
+        CancelSale();
     }
 }

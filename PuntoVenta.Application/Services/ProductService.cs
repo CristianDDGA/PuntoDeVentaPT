@@ -45,14 +45,21 @@ public class ProductService : IProductService
         return savedProduct.Adapt<ProductDto>();
     }
 
+    public async Task<bool> ActivateAsync(int productId)
+        => await _productRepository.ActivateAsync(productId);
+
+    public async Task<bool> DeactivateAsync(int productId)
+        => await _productRepository.DeactivateAsync(productId);
+
     public async Task<PagedResult<ProductDto>> SearchPagedAsync(
         int?    productId,
         string? name,
         int     page,
         int     pageSize,
-        bool    onlyInStock = false)
+        bool    onlyInStock = false,
+        bool    onlyActive = false)
     {
-        var (items, totalCount) = await _productRepository.SearchPagedAsync(productId, name, page, pageSize, onlyInStock);
+        var (items, totalCount) = await _productRepository.SearchPagedAsync(productId, name, page, pageSize, onlyInStock, onlyActive);
         var productDtos         = items.Adapt<IEnumerable<ProductDto>>();
         return PagedResult<ProductDto>.Create(productDtos, totalCount, page, pageSize);
     }

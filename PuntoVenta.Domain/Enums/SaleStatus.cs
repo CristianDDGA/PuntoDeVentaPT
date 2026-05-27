@@ -2,7 +2,12 @@ namespace PuntoVenta.Domain.Enums;
 
 public enum SaleStatus : byte
 {
-    Pending = 1,
-    Paid    = 2,
-    Voided  = 3
+    Draft     = 1,
+    Confirmed = 2,
+    Cancelled = 3,
+
+    // Backward-compatible aliases for the current API/UI while we migrate flows.
+    Pending = Draft,
+    Paid    = Confirmed,
+    Voided  = Cancelled
 }

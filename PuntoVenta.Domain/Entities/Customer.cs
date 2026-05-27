@@ -11,6 +11,7 @@ public class Customer
     public string? Address       { get; private set; }
     public string? City          { get; private set; }
     public string? Email         { get; private set; }
+    public bool    IsActive      { get; private set; } = true;
 
     // Constructor para EF Core
     private Customer() { }
@@ -41,9 +42,14 @@ public class Customer
             Phone          = phone?.Trim(),
             Address        = address?.Trim(),
             City           = city?.Trim(),
-            Email          = email?.Trim()
+            Email          = email?.Trim(),
+            IsActive       = true
         };
     }
 
     public string FullName => $"{FirstName} {LastName}";
+
+    public void Activate() => IsActive = true;
+
+    public void Deactivate() => IsActive = false;
 }

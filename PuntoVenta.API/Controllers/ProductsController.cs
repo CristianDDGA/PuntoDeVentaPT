@@ -1,5 +1,7 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PuntoVenta.Application.Constants;
 using PuntoVenta.Application.DTOs.Product;
 using PuntoVenta.Application.Interfaces.Services;
 
@@ -7,6 +9,7 @@ namespace PuntoVenta.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Seller}")]
 public class ProductsController : ControllerBase
 {
     private readonly IProductService             _productService;
@@ -65,6 +68,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] CreateProductDto createProductDto)
     {
         var validationResult = await _createProductValidator.ValidateAsync(createProductDto);
@@ -74,5 +78,21 @@ public class ProductsController : ControllerBase
 
         var savedProduct = await _productService.CreateAsync(createProductDto);
         return CreatedAtAction(nameof(GetById), new { productId = savedProduct.ProductId }, savedProduct);
+    }
+
+    [HttpPut("{productId:int}/activate")]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Activate(int productId)
+    {
+        var success = await _productService.ActivateAsync(productId);
+        return success ? NoContent() : NotFound($"Product with id {productId} not found.");
+    }
+
+    [HttpPut("{productId:int}/deactivate")]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Deactivate(int productId)
+    {
+        var success = await _productService.DeactivateAsync(productId);
+        return success ? NoContent() : NotFound($"Product with id {productId} not found.");
     }
 }

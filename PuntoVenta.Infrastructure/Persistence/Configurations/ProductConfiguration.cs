@@ -23,6 +23,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         productBuilder.Property(product => product.Stock)
             .IsRequired();
 
+        productBuilder.Property(product => product.IsActive)
+            .IsRequired();
+
         // 🚀 NUEVO: Agregamos los productos semilla usando objetos anónimos
         productBuilder.HasData(
             new
@@ -30,21 +33,24 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
                 ProductId = 1,
                 Name = "Teclado 1",
                 Price = 1.50m,
-                Stock = 50
+                Stock = 50,
+                IsActive = true
             },
             new
             {
                 ProductId = 2,
                 Name = "Proyecto Epson",
                 Price = 0.80m,
-                Stock = 100
+                Stock = 100,
+                IsActive = true
             },
             new
             {
                 ProductId = 3,
                 Name = "Laptop HP ",
                 Price = 1.20m,
-                Stock = 30
+                Stock = 30,
+                IsActive = true
             }
         );
     }

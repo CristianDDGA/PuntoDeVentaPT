@@ -37,16 +37,35 @@ public class CustomerRepository : ICustomerRepository
         return newCustomer;
     }
 
+    public async Task<bool> ActivateAsync(int customerId)
+        => await UpdateIsActiveAsync(customerId, true);
+
+    public async Task<bool> DeactivateAsync(int customerId)
+        => await UpdateIsActiveAsync(customerId, false);
+
+    private async Task<bool> UpdateIsActiveAsync(int customerId, bool isActive)
+    {
+        var affectedRows = await _appDbContext.Customers
+            .Where(customer => customer.CustomerId == customerId)
+            .ExecuteUpdateAsync(update => update.SetProperty(customer => customer.IsActive, isActive));
+
+        return affectedRows > 0;
+    }
+
     /// <inheritdoc />
     public async Task<(IEnumerable<Customer> Items, int TotalCount)> SearchPagedAsync(
         int?    customerId,
         string? documentNumber,
         string? lastName,
         int     page,
-        int     pageSize)
+        int     pageSize,
+        bool    onlyActive = false)
     {
         // Start from the full set (AsNoTracking for read-only queries)
         var query = _appDbContext.Customers.AsNoTracking();
+
+        if (onlyActive)
+            query = query.Where(customer => customer.IsActive);
 
         // Exact-match by primary key takes priority when supplied
         if (customerId.HasValue)

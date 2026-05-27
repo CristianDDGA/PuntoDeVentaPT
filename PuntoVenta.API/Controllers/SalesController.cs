@@ -1,12 +1,16 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PuntoVenta.Application.Constants;
 using PuntoVenta.Application.DTOs.Sale;
 using PuntoVenta.Application.Interfaces.Services;
+using System.Security.Claims;
 
 namespace PuntoVenta.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Seller}")]
 public class SalesController : ControllerBase
 {
     private readonly ISaleService             _saleService;
@@ -99,7 +103,7 @@ public class SalesController : ControllerBase
     {
         try
         {
-            var success = await _saleService.VoidSaleAsync(saleId);
+            var success = await _saleService.CancelSaleAsync(saleId, GetCurrentUserId());
             if (!success) return NotFound($"Sale with id {saleId} not found.");
             return NoContent();
         }
@@ -114,7 +118,7 @@ public class SalesController : ControllerBase
     {
         try
         {
-            var success = await _saleService.MarkAsPaidAsync(saleId);
+            var success = await _saleService.ConfirmSaleAsync(saleId, GetCurrentUserId());
             if (!success) return NotFound($"Sale with id {saleId} not found.");
             return NoContent();
         }
@@ -123,4 +127,9 @@ public class SalesController : ControllerBase
             return BadRequest(new { Message = ex.Message });
         }
     }
+
+    private int? GetCurrentUserId()
+        => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            ? userId
+            : null;
 }

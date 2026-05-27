@@ -8,6 +8,8 @@ public interface IProductRepository
     Task<IEnumerable<Product>> SearchByNameAsync(string name);
     Task<Product?>             GetByIdAsync(int productId);
     Task<Product>              AddAsync(Product product);
+    Task<bool>                 ActivateAsync(int productId);
+    Task<bool>                 DeactivateAsync(int productId);
     Task                       UpdateStockAsync(int productId, int newStock);
     Task<bool>                 ReduceStockAsync(int productId, int quantity);
 
@@ -20,5 +22,6 @@ public interface IProductRepository
         string? name,
         int     page,
         int     pageSize,
-        bool    onlyInStock = false);
+        bool    onlyInStock = false,
+        bool    onlyActive = false);
 }

@@ -36,6 +36,9 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         customerBuilder.Property(customer => customer.Email)
             .HasMaxLength(150);
 
+        customerBuilder.Property(customer => customer.IsActive)
+            .IsRequired();
+
         // Index to optimise LIKE searches by last name in the customer search modal.
         customerBuilder.HasIndex(customer => customer.LastName)
             .HasDatabaseName("inx_apellido");
@@ -53,7 +56,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
                 Phone = "0999999991",
                 Address = "Av. Cevallos y Espejo",
                 City = "Ambato",
-                Email = "juan.perez@gmail.com"
+                Email = "juan.perez@gmail.com",
+                IsActive = true
             },
             new
             {
@@ -64,7 +68,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
                 Phone = "0999999992",
                 Address = "Av. de los Shyris",
                 City = "Quito",
-                Email = "maria.lopez@gmail.com"
+                Email = "maria.lopez@gmail.com",
+                IsActive = true
             }
         );
     }

@@ -26,7 +26,7 @@ public class DashboardService : IDashboardService
     {
         var allSalesData = await _saleRepository.GetAllAsync();
         var allSales     = allSalesData.ToList();
-        var validSales   = allSales.Where(s => s.Status != SaleStatus.Voided).ToList();
+        var validSales   = allSales.Where(s => s.Status != SaleStatus.Cancelled).ToList();
         
         var allCustomers = (await _customerRepository.GetAllAsync()).ToList();
         var allProducts  = (await _productRepository.GetAllAsync()).ToList();

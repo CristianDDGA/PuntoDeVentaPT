@@ -9,6 +9,8 @@ public interface ICustomerService
     Task<IEnumerable<CustomerDto>> SearchByLastNameAsync(string lastName);
     Task<CustomerDto?>             GetByIdAsync(int customerId);
     Task<CustomerDto>              CreateAsync(CreateCustomerDto dto);
+    Task<bool>                     ActivateAsync(int customerId);
+    Task<bool>                     DeactivateAsync(int customerId);
 
     /// <summary>
     /// Returns a paginated subset of customers filtered by optional customerId (exact) or lastName (LIKE).
@@ -18,5 +20,6 @@ public interface ICustomerService
         string? documentNumber,
         string? lastName,
         int     page,
-        int     pageSize);
+        int     pageSize,
+        bool    onlyActive = false);
 }

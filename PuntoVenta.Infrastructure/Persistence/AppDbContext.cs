@@ -12,6 +12,10 @@ public class AppDbContext : DbContext
     public DbSet<Product>    Products    => Set<Product>();
     public DbSet<Sale>       Sales       => Set<Sale>();
     public DbSet<SaleDetail> SaleDetails => Set<SaleDetail>();
+    public DbSet<Role>       Roles       => Set<Role>();
+    public DbSet<User>       Users       => Set<User>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<ErrorLog>   ErrorLogs   => Set<ErrorLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -19,6 +23,10 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new SaleConfiguration());
         modelBuilder.ApplyConfiguration(new SaleDetailConfiguration());
+        modelBuilder.ApplyConfiguration(new RoleConfiguration());
+        modelBuilder.ApplyConfiguration(new UserConfiguration());
+        modelBuilder.ApplyConfiguration(new StockMovementConfiguration());
+        modelBuilder.ApplyConfiguration(new ErrorLogConfiguration());
 
         base.OnModelCreating(modelBuilder);
     }

@@ -8,6 +8,7 @@ public class Product
     public string  Name      { get; private set; } = string.Empty;
     public decimal Price     { get; private set; }
     public int     Stock     { get; private set; }
+    public bool    IsActive  { get; private set; } = true;
 
     private Product() { }
 
@@ -26,7 +27,8 @@ public class Product
         {
             Name  = name.Trim(),
             Price = price,
-            Stock = stock
+            Stock = stock,
+            IsActive = true
         };
     }
 
@@ -49,4 +51,8 @@ public class Product
 
         Stock += quantity;
     }
+
+    public void Activate() => IsActive = true;
+
+    public void Deactivate() => IsActive = false;
 }

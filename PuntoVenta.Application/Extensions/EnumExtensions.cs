@@ -17,12 +17,15 @@ public static class EnumExtensions
 
     public static string ToSpanish(this SaleStatus status)
     {
-        return status switch
-        {
-            SaleStatus.Pending => "Pendiente",
-            SaleStatus.Paid    => "Pagado",
-            SaleStatus.Voided  => "Anulado",
-            _                  => status.ToString()
-        };
+        if (status == SaleStatus.Draft || status == SaleStatus.Pending)
+            return "Borrador";
+
+        if (status == SaleStatus.Confirmed || status == SaleStatus.Paid)
+            return "Confirmada";
+
+        if (status == SaleStatus.Cancelled || status == SaleStatus.Voided)
+            return "Cancelada";
+
+        return status.ToString();
     }
 }

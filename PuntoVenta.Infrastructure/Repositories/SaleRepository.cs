@@ -89,7 +89,7 @@ public class SaleRepository : ISaleRepository
 
         if (excludeVoided)
         {
-            query = query.Where(sale => sale.Status != Domain.Enums.SaleStatus.Voided);
+            query = query.Where(sale => sale.Status != Domain.Enums.SaleStatus.Cancelled);
         }
 
         var totalCount = await query.CountAsync();

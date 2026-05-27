@@ -26,4 +26,6 @@ public interface ISaleService
 
     Task<bool> VoidSaleAsync(int saleId);
     Task<bool> MarkAsPaidAsync(int saleId);
+    Task<bool> ConfirmSaleAsync(int saleId, int? userId = null);
+    Task<bool> CancelSaleAsync(int saleId, int? userId = null);
 }
