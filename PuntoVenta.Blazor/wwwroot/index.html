@@ -23,6 +23,12 @@
 
 <body>
     <script>
+        window.pvAuthStorage = {
+            get: (key) => localStorage.getItem(key),
+            set: (key, value) => localStorage.setItem(key, value),
+            remove: (key) => localStorage.removeItem(key)
+        };
+
         // Download PDF from a base-64 string
         window.downloadPdf = (base64, fileName) => {
             const bytes    = Uint8Array.from(atob(base64), c => c.charCodeAt(0));

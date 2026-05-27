@@ -79,4 +79,8 @@ public class UsersController : ControllerBase
     [HttpPut("{userId:int}/deactivate")]
     public async Task<IActionResult> Deactivate(int userId)
         => await _userService.DeactivateAsync(userId) ? NoContent() : NotFound($"User with id {userId} not found.");
+
+    [HttpPut("{userId:int}/unlock")]
+    public async Task<IActionResult> Unlock(int userId)
+        => await _userService.UnlockAsync(userId) ? NoContent() : NotFound($"User with id {userId} not found.");
 }

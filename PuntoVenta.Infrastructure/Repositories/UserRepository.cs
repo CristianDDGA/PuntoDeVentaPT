@@ -32,6 +32,12 @@ public class UserRepository : IUserRepository
             .Include(user => user.Role)
             .FirstOrDefaultAsync(user => user.Username == username);
 
+    public async Task<User?> GetByEmailAsync(string email)
+        => await _appDbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .FirstOrDefaultAsync(user => user.Email == email);
+
     public async Task<User> AddAsync(User user)
     {
         await _appDbContext.Users.AddAsync(user);
@@ -48,7 +54,9 @@ public class UserRepository : IUserRepository
                 .SetProperty(existingUser => existingUser.Email, user.Email)
                 .SetProperty(existingUser => existingUser.RoleId, user.RoleId)
                 .SetProperty(existingUser => existingUser.PasswordHash, user.PasswordHash)
-                .SetProperty(existingUser => existingUser.IsActive, user.IsActive));
+                .SetProperty(existingUser => existingUser.IsActive, user.IsActive)
+                .SetProperty(existingUser => existingUser.FailedLoginAttempts, user.FailedLoginAttempts)
+                .SetProperty(existingUser => existingUser.IsLocked, user.IsLocked));
     }
 
     public async Task<bool> ActivateAsync(int userId)

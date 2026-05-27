@@ -1,11 +1,13 @@
-﻿using Bogus;
+using Bogus;
 using Microsoft.EntityFrameworkCore;
 using Oracle.ManagedDataAccess.Client;
+using PuntoVenta.Domain.Enums;
+using PuntoVenta.Infrastructure.Persistence;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Threading.Tasks;
-using PuntoVenta.Infrastructure.Persistence;
 
 namespace PuntoVenta.Infrastructure.Persistence;
 
@@ -23,7 +25,9 @@ public class DataSeedingService
         // 5 minutos de tiempo de espera (timeout) para que Oracle procese todo con calma
         _context.Database.SetCommandTimeout(300);
 
-        var faker = new Faker("es");
+        // Forzamos la cultura en inglés para los nombres de productos tecnológicos (ej. "Laptop Pro", "Gaming Mouse")
+        var fakerTech = new Faker("en");
+        var fakerEs = new Faker("es");
 
         // ==========================================
         // 1. GENERACIÓN DE DATOS EN MEMORIA (ARREGLOS)
@@ -39,34 +43,47 @@ public class DataSeedingService
         var clienteDirecciones = new string[100000];
         var clienteCiudades = new string[100000];
         var clienteEmails = new string[100000];
-        var clienteEstados = Enumerable.Repeat(true, 100000).ToArray();
+        // En Oracle mapeamos los booleanos como NUMBER(1) -> 1 para True
+        var clienteEstados = Enumerable.Repeat((byte)1, 100000).ToArray();
 
         for (int i = 0; i < 100000; i++)
         {
             clienteIds[i] = ++customerIdSeed;
-            clienteDocumentos[i] = faker.Random.ReplaceNumbers("18########");
-            clienteNombres[i] = faker.Name.FirstName();
-            clienteApellidos[i] = faker.Name.LastName();
-            clienteTelefonos[i] = faker.Phone.PhoneNumber("09########");
-            clienteDirecciones[i] = faker.Address.StreetAddress();
+            clienteDocumentos[i] = fakerEs.Random.ReplaceNumbers("18########");
+            clienteNombres[i] = fakerEs.Name.FirstName();
+            clienteApellidos[i] = fakerEs.Name.LastName();
+            clienteTelefonos[i] = fakerEs.Phone.PhoneNumber("09########");
+            clienteDirecciones[i] = fakerEs.Address.StreetAddress();
             clienteCiudades[i] = "Ambato";
-            clienteEmails[i] = faker.Internet.Email(clienteNombres[i], clienteApellidos[i]);
+            clienteEmails[i] = fakerEs.Internet.Email(clienteNombres[i], clienteApellidos[i]);
         }
 
-        // --- Productos (100,000) ---
+        // --- Productos Tecnológicos (100,000) ---
         var productIdSeed = 100;
         var productoIds = new int[100000];
         var productoNombres = new string[100000];
         var productoPrecios = new decimal[100000];
         var productoStocks = new int[100000];
-        var productoEstados = Enumerable.Repeat(true, 100000).ToArray();
+        var productoEstados = Enumerable.Repeat((byte)1, 100000).ToArray();
+
+        // Lista de prefijos y sufijos para darle un toque ultra tecnológico y realista
+        var marcasTech = new[] { "Asus ROG", "MSI Pro", "Corsair", "Logitech G", "Razer", "Samsung Evo", "Kingston Fury", "Intel Core", "AMD Ryzen", "Sony", "Apple", "Dell UltraSharp", "Gigabyte" };
+        var categoriasTech = new[] { "Gaming Laptop", "Mechanical Keyboard", "Wireless Mouse", "NVMe M.2 SSD", "Graphics Card RTX", "DDR5 RAM 16GB", "Curved Monitor", "Processor", "Liquid Cooling", "Headset 7.1" };
 
         for (int i = 0; i < 100000; i++)
         {
             productoIds[i] = ++productIdSeed;
-            productoNombres[i] = faker.Commerce.ProductName();
-            productoPrecios[i] = Math.Round(faker.Random.Decimal(0.50m, 40.00m), 2);
-            productoStocks[i] = faker.Random.Number(5, 300);
+
+            // Combina una marca real, una categoría y el generador de productos electrónicos de Bogus
+            var marca = fakerTech.PickRandom(marcasTech);
+            var categoria = fakerTech.PickRandom(categoriasTech);
+            var modelo = fakerTech.Commerce.Product(); // Ej: "Computer", "Chips", etc.
+
+            productoNombres[i] = $"{marca} {categoria} ({modelo})";
+
+            // Los precios de tecnología son más elevados (ej: entre $15.00 por un cable hasta $1500.00 por una laptop)
+            productoPrecios[i] = Math.Round(fakerTech.Random.Decimal(15.00m, 1499.00m), 2);
+            productoStocks[i] = fakerTech.Random.Number(5, 300);
         }
 
         // --- Ventas (100,000) y Detalles Dinámicos ---
@@ -92,18 +109,18 @@ public class DataSeedingService
         {
             var actualSaleId = ++saleIdSeed;
             ventaIds[i] = actualSaleId;
-            ventaClienteIds[i] = clienteIds[faker.Random.Number(0, 99999)];
-            ventaFechas[i] = faker.Date.Past(1); // Ventas registradas en el último año
-            ventaTiposPago[i] = (byte)faker.Random.Number(1, 3); // 1: Efectivo, 2: Tarjeta, 3: Transferencia
-            ventaEstados[i] = 1; // 1: Completada
+            ventaClienteIds[i] = clienteIds[fakerEs.Random.Number(0, 99999)];
+            ventaFechas[i] = fakerEs.Date.Past(1); // Ventas del último año
+            ventaTiposPago[i] = 1; // 1: Solo efectivo (Cumpliendo el Requisito 30 del PDF)
+            ventaEstados[i] = (byte)SaleStatus.Confirmed; // 1: Confirmed (Estado base en semilla para estrés)
 
-            int itemsEnVenta = faker.Random.Number(1, 2); // 1 o 2 productos por venta
+            int itemsEnVenta = fakerEs.Random.Number(1, 2); // 1 o 2 artículos tecnológicos por factura
             decimal subtotalVenta = 0;
 
             for (int j = 0; j < itemsEnVenta; j++)
             {
-                int randomProdIndex = faker.Random.Number(0, 99999);
-                int cantidad = faker.Random.Number(1, 5);
+                int randomProdIndex = fakerEs.Random.Number(0, 99999);
+                int cantidad = fakerEs.Random.Number(1, 2); // Compras lógicas de tecnología (1 o 2 unidades)
                 decimal precio = productoPrecios[randomProdIndex];
 
                 subtotalVenta += (precio * cantidad);
@@ -115,7 +132,7 @@ public class DataSeedingService
                 detPreciosUnitarios.Add(precio);
             }
 
-            decimal IVA = Math.Round(subtotalVenta * 0.15m, 2); // Simulación de IVA 15%
+            decimal IVA = Math.Round(subtotalVenta * 0.15m, 2); // Simulación de IVA 15% (Ecuador)
             ventaSubtotales[i] = Math.Round(subtotalVenta, 2);
             ventaImpuestos[i] = IVA;
             ventaTotales[i] = Math.Round(subtotalVenta + IVA, 2);
@@ -133,13 +150,13 @@ public class DataSeedingService
             {
                 try
                 {
-                    // 🧹 🚀 LIMPIEZA AUTOMÁTICA PREVIA
-                    // Borramos en orden estricto de dependencias para no violar las Foreign Keys
+                    // 🧹 🚀 LIMPIEZA AUTOMÁTICA PREVIA (Garantiza entorno relacional limpio)
                     using (var limpiarCommand = connection.CreateCommand())
                     {
                         limpiarCommand.Transaction = transaction;
                         limpiarCommand.CommandText = @"
                             BEGIN
+                                EXECUTE IMMEDIATE 'DELETE FROM ""StockMovements""';
                                 EXECUTE IMMEDIATE 'DELETE FROM ""SaleDetails""';
                                 EXECUTE IMMEDIATE 'DELETE FROM ""Sales""';
                                 EXECUTE IMMEDIATE 'DELETE FROM ""Products""';
@@ -163,7 +180,7 @@ public class DataSeedingService
                         command.Parameters.Add(new OracleParameter("Address", OracleDbType.Varchar2) { Value = clienteDirecciones });
                         command.Parameters.Add(new OracleParameter("City", OracleDbType.Varchar2) { Value = clienteCiudades });
                         command.Parameters.Add(new OracleParameter("Email", OracleDbType.Varchar2) { Value = clienteEmails });
-                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Boolean) { Value = clienteEstados });
+                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Byte) { Value = clienteEstados });
                         await command.ExecuteNonQueryAsync();
                     }
 
@@ -177,7 +194,7 @@ public class DataSeedingService
                         command.Parameters.Add(new OracleParameter("Name", OracleDbType.Varchar2) { Value = productoNombres });
                         command.Parameters.Add(new OracleParameter("Price", OracleDbType.Decimal) { Value = productoPrecios });
                         command.Parameters.Add(new OracleParameter("Stock", OracleDbType.Int32) { Value = productoStocks });
-                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Boolean) { Value = productoEstados });
+                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Byte) { Value = productoEstados });
                         await command.ExecuteNonQueryAsync();
                     }
 

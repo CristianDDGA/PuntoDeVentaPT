@@ -9,6 +9,10 @@ public class User
     public string? Email       { get; private set; }
     public bool   IsActive     { get; private set; } = true;
     public int    RoleId       { get; private set; }
+    
+    // New fields for lockout
+    public int    FailedLoginAttempts { get; private set; } = 0;
+    public bool   IsLocked            { get; private set; } = false;
 
     public Role Role { get; private set; } = null!;
 
@@ -66,4 +70,30 @@ public class User
     public void Activate() => IsActive = true;
 
     public void Deactivate() => IsActive = false;
+
+    // Lockout logic
+    public void IncrementFailedAttempts()
+    {
+        FailedLoginAttempts++;
+        if (FailedLoginAttempts >= 3)
+        {
+            IsLocked = true;
+        }
+    }
+
+    public void ResetFailedAttempts()
+    {
+        FailedLoginAttempts = 0;
+    }
+
+    public void LockUser()
+    {
+        IsLocked = true;
+    }
+
+    public void UnlockUser()
+    {
+        IsLocked = false;
+        FailedLoginAttempts = 0;
+    }
 }

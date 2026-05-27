@@ -116,7 +116,9 @@ namespace PuntoVenta.Infrastructure.Migrations
                     FullName = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: false),
                     Email = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: true),
                     IsActive = table.Column<bool>(type: "BOOLEAN", nullable: false),
-                    RoleId = table.Column<int>(type: "NUMBER(10)", nullable: false)
+                    RoleId = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    FailedLoginAttempts = table.Column<int>(type: "NUMBER(10)", nullable: false, defaultValue: 0),
+                    IsLocked = table.Column<bool>(type: "BOOLEAN", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {

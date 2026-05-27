@@ -30,12 +30,19 @@ public class AuthController : ControllerBase
         if (!validationResult.IsValid)
             return BadRequest(validationResult.Errors.Select(error => error.ErrorMessage));
 
-        var loginResult = await _authService.LoginAsync(loginRequestDto);
+        try
+        {
+            var loginResult = await _authService.LoginAsync(loginRequestDto);
 
-        if (loginResult is null)
-            return Unauthorized(new { Message = "Credenciales inválidas o usuario inactivo." });
+            if (loginResult is null)
+                return Unauthorized(new { Message = "Credenciales inválidas o usuario inactivo." });
 
-        return Ok(loginResult);
+            return Ok(loginResult);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { Message = ex.Message });
+        }
     }
 
     [Authorize]

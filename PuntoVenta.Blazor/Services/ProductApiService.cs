@@ -47,18 +47,51 @@ public class ProductApiService
         string? name        = null,
         int     page        = 1,
         int     pageSize    = 10,
-        bool    onlyInStock = false)
+        bool    onlyInStock = false,
+        bool    onlyActive  = false)
     {
         try
         {
             var url = BuildPagedUrl("api/Products/paged", page, pageSize,
                 productId.HasValue ? $"productId={productId}" : null,
                 !string.IsNullOrWhiteSpace(name) ? $"name={Uri.EscapeDataString(name)}" : null,
-                onlyInStock ? "onlyInStock=true" : null);
+                onlyInStock ? "onlyInStock=true" : null,
+                onlyActive ? "onlyActive=true" : null);
 
             return await _httpClient.GetFromJsonAsync<PagedResultModel<ProductModel>>(url);
         }
         catch { return null; }
+    }
+
+    public async Task<ProductModel?> CreateAsync(CreateProductModel createProductModel)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/Products", createProductModel);
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<ProductModel>();
+        }
+        catch { return null; }
+    }
+
+    public async Task<bool> ActivateAsync(int productId)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsync($"api/Products/{productId}/activate", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> DeactivateAsync(int productId)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsync($"api/Products/{productId}/deactivate", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

@@ -1,0 +1,89 @@
+@page "/login"
+@layout EmptyLayout
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject AuthSessionService AuthSessionService
+@inject NavigationManager Navigation
+
+<PageTitle>Iniciar sesión — Punto de Venta</PageTitle>
+
+<div class="login-shell">
+    <div class="login-panel">
+        <div class="login-hero">
+            <div class="login-badge">POS</div>
+            <h1>Acceso al sistema</h1>
+            <p>Ingresa con tu usuario autorizado para operar ventas, catálogo y administración.</p>
+        </div>
+
+        <EditForm Model="_login" OnValidSubmit="HandleLoginAsync">
+            <div class="login-form-grid">
+                <div class="field-group">
+                    <label class="field-label">Correo Electrónico</label>
+                    <InputText class="field-input" @bind-Value="_login.Email" type="email" autocomplete="username" />
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Contraseña</label>
+                    <InputText class="field-input" @bind-Value="_login.Password" type="password" autocomplete="current-password" />
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <div class="alert alert--error">@_errorMessage</div>
+            }
+
+            <button class="btn btn--primary btn--lg login-submit" type="submit" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span>Verificando...</span>
+                }
+                else
+                {
+                    <span>Entrar</span>
+                }
+            </button>
+
+            <div class="login-hint">
+                Usuarios semilla: <strong>admin / Admin123*</strong> y <strong>seller / Seller123*</strong>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly LoginRequestModel _login = new();
+    private bool _isLoading;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentSession = await AuthSessionService.GetCurrentSessionAsync();
+
+        if (currentSession is not null)
+            Navigation.NavigateTo("/", true);
+    }
+
+    private async Task HandleLoginAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var session = await AuthSessionService.LoginAsync(_login);
+            Navigation.NavigateTo("/", true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Ocurrió un error inesperado al iniciar sesión.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

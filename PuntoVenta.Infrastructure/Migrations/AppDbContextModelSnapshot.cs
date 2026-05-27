@@ -324,6 +324,11 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("NVARCHAR2(150)");
 
+                    b.Property<int>("FailedLoginAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("NUMBER(10)")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -331,6 +336,11 @@ namespace PuntoVenta.Infrastructure.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("BOOLEAN");
+
+                    b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("BOOLEAN")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()

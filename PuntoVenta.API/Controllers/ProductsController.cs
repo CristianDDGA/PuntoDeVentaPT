@@ -47,12 +47,13 @@ public class ProductsController : ControllerBase
         [FromQuery] string? name        = null,
         [FromQuery] int     page        = 1,
         [FromQuery] int     pageSize    = 10,
-        [FromQuery] bool    onlyInStock = false)
+        [FromQuery] bool    onlyInStock = false,
+        [FromQuery] bool    onlyActive  = false)
     {
         if (page < 1)     page     = 1;
         if (pageSize < 1) pageSize = 10;
 
-        var pagedResult = await _productService.SearchPagedAsync(productId, name, page, pageSize, onlyInStock);
+        var pagedResult = await _productService.SearchPagedAsync(productId, name, page, pageSize, onlyInStock, onlyActive);
         return Ok(pagedResult);
     }
 

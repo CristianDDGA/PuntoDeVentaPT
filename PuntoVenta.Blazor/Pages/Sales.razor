@@ -1,4 +1,5 @@
 @page "/nueva-venta"
+@attribute [Authorize]
 @using PuntoVenta.Blazor.Models
 @using PuntoVenta.Blazor.Services
 @inject CustomerApiService CustomerApiService
@@ -356,54 +357,6 @@
                     </table>
                 </div>
 
-                <!-- Create customer toggle -->
-                <button class="section-toggle" @onclick="ToggleCreateCustomerSection">
-                    <span class="section-toggle-icon @(_isCreateCustomerSectionOpen ? "section-toggle-icon--open" : "")"><i class="ph ph-caret-down"></i></span>
-                    <i class="ph ph-plus"></i> Crear nuevo cliente
-                </button>
-
-                @if (_isCreateCustomerSectionOpen)
-                {
-                    <div class="create-form-section">
-                        <div class="form-grid form-grid-2" style="margin-bottom:var(--spacing-md);">
-                            <div class="field-group" style="grid-column: span 2;">
-                                <label class="field-label">RUC/Cédula *</label>
-                                <input class="field-input" placeholder="0999999999..." @bind="_newCustomer.DocumentNumber" />
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Nombre *</label>
-                                <input class="field-input" placeholder="Nombre" @bind="_newCustomer.FirstName" />
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Apellido *</label>
-                                <input class="field-input" placeholder="Apellido" @bind="_newCustomer.LastName" />
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Teléfono</label>
-                                <input class="field-input" placeholder="0999..." @bind="_newCustomer.Phone" />
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Correo Electrónico</label>
-                                <input class="field-input" type="email" placeholder="correo@ejemplo.com" @bind="_newCustomer.Email" />
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Ciudad</label>
-                                <input class="field-input" placeholder="Ej: Guayaquil" @bind="_newCustomer.City" />
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Dirección</label>
-                                <input class="field-input" placeholder="Dirección completa" @bind="_newCustomer.Address" />
-                            </div>
-                        </div>
-                        @if (!string.IsNullOrEmpty(_createCustomerError))
-                        {
-                            <div class="alert alert--error" style="margin-bottom:var(--spacing-sm);"><i class="ph ph-warning-circle"></i> @_createCustomerError</div>
-                        }
-                        <button class="btn btn--success" @onclick="CreateCustomer" disabled="@_isSavingCustomer">
-                            @if (_isSavingCustomer) { <text><i class="ph ph-hourglass-high"></i> Guardando...</text> } else { <text><i class="ph ph-floppy-disk"></i> Guardar Cliente</text> }
-                        </button>
-                    </div>
-                }
             </div>
 
             <div class="modal-footer">
@@ -412,7 +365,13 @@
                             disabled="@(_customerCurrentPage <= 1)"
                             @onclick="() => LoadCustomerPageAsync(_customerCurrentPage - 1)"><i class="ph ph-caret-left"></i></button>
 
-                    @for (int pageIndex = 1; pageIndex <= (_customerPagedResult?.TotalPages ?? 1); pageIndex++)
+                    @{
+                        int totalCustPages = _customerPagedResult?.TotalPages ?? 1;
+                        int startCustPage = Math.Max(1, _customerCurrentPage - 2);
+                        int endCustPage = Math.Min(totalCustPages, startCustPage + 4);
+                        if (endCustPage - startCustPage < 4) startCustPage = Math.Max(1, endCustPage - 4);
+                    }
+                    @for (int pageIndex = startCustPage; pageIndex <= endCustPage; pageIndex++)
                     {
                         var capturedPage = pageIndex;
                         <button class="pagination-btn @(capturedPage == _customerCurrentPage ? "pagination-btn--active" : "")"
@@ -531,7 +490,13 @@
                             disabled="@(_productCurrentPage <= 1)"
                             @onclick="() => LoadProductPageAsync(_productCurrentPage - 1)"><i class="ph ph-caret-left"></i></button>
 
-                    @for (int pageIndex = 1; pageIndex <= (_productPagedResult?.TotalPages ?? 1); pageIndex++)
+                    @{
+                        int totalProdPages = _productPagedResult?.TotalPages ?? 1;
+                        int startProdPage = Math.Max(1, _productCurrentPage - 2);
+                        int endProdPage = Math.Min(totalProdPages, startProdPage + 4);
+                        if (endProdPage - startProdPage < 4) startProdPage = Math.Max(1, endProdPage - 4);
+                    }
+                    @for (int pageIndex = startProdPage; pageIndex <= endProdPage; pageIndex++)
                     {
                         var capturedPage = pageIndex;
                         <button class="pagination-btn @(capturedPage == _productCurrentPage ? "pagination-btn--active" : "")"
@@ -601,6 +566,7 @@
                                 <th class="align-right">Subtotal</th>
                                 <th class="align-right">IVA</th>
                                 <th class="align-right">Total</th>
+                                <th>Estado</th>
                                 <th class="align-center">PDF</th>
                             </tr>
                         </thead>
@@ -622,6 +588,16 @@
                                     <td class="td-numeric">$@saleModel.Subtotal.ToString("F2")</td>
                                     <td class="td-numeric">$@saleModel.TaxAmount.ToString("F2")</td>
                                     <td class="td-numeric">$@saleModel.Total.ToString("F2")</td>
+                                    <td>
+                                        @if (saleModel.Status == "Cancelada")
+                                        {
+                                            <span style="color:var(--color-danger); font-size:var(--font-size-xs); font-weight:bold;">CANCELADA</span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color:var(--color-success); font-size:var(--font-size-xs); font-weight:bold;">CONFIRMADA</span>
+                                        }
+                                    </td>
                                     <td class="align-center">
                                         <button class="btn btn--ghost btn--sm"
                                                 @onclick="() => PreviewPdfAsync(saleModel.SaleId)">
@@ -641,7 +617,13 @@
                             disabled="@(_saleHistoryCurrentPage <= 1)"
                             @onclick="() => LoadSaleHistoryPageAsync(_saleHistoryCurrentPage - 1)"><i class="ph ph-caret-left"></i></button>
 
-                    @for (int pageIndex = 1; pageIndex <= (_saleHistoryPagedResult?.TotalPages ?? 1); pageIndex++)
+                    @{
+                        int totalHistPages = _saleHistoryPagedResult?.TotalPages ?? 1;
+                        int startHistPage = Math.Max(1, _saleHistoryCurrentPage - 2);
+                        int endHistPage = Math.Min(totalHistPages, startHistPage + 4);
+                        if (endHistPage - startHistPage < 4) startHistPage = Math.Max(1, endHistPage - 4);
+                    }
+                    @for (int pageIndex = startHistPage; pageIndex <= endHistPage; pageIndex++)
                     {
                         var capturedPage = pageIndex;
                         <button class="pagination-btn @(capturedPage == _saleHistoryCurrentPage ? "pagination-btn--active" : "")"
@@ -724,10 +706,6 @@
     private int                           _customerCurrentPage        = 1;
     private PagedResultModel<CustomerModel>? _customerPagedResult     = null;
     private CustomerModel?                _selectedCustomerRow        = null;
-    private bool                          _isCreateCustomerSectionOpen = false;
-    private CreateCustomerModel           _newCustomer                = new();
-    private string                        _createCustomerError        = string.Empty;
-    private bool                          _isSavingCustomer           = false;
 
     // ── Product modal state ─────────────────────────────────────────────
     private bool                          _isProductModalOpen  = false;
@@ -1013,9 +991,6 @@
         _customerSearchDocument = string.Empty;
         _customerSearchLastName = string.Empty;
         _selectedCustomerRow    = _selectedCustomer;
-        _isCreateCustomerSectionOpen = false;
-        _createCustomerError    = string.Empty;
-        _newCustomer            = new CreateCustomerModel();
         _isCustomerModalOpen    = true;
         await LoadCustomerPageAsync(1);
     }
@@ -1042,7 +1017,8 @@
             documentNumber: _customerSearchDocument,
             lastName:       _customerSearchLastName,
             page:           page,
-            pageSize:       10);
+            pageSize:       10,
+            onlyActive:     true);
     }
 
     private void SelectCustomerAndClose(CustomerModel customerModel)
@@ -1050,50 +1026,6 @@
         _selectedCustomer    = customerModel;
         _isCustomerModalOpen = false;
         _errorMessage        = string.Empty;
-    }
-
-    private void ToggleCreateCustomerSection()
-    {
-        _isCreateCustomerSectionOpen = !_isCreateCustomerSectionOpen;
-        _createCustomerError         = string.Empty;
-    }
-
-    private async Task CreateCustomer()
-    {
-        _createCustomerError = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(_newCustomer.DocumentNumber))
-        {
-            _createCustomerError = "El número de documento (RUC/Cédula) es obligatorio.";
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_newCustomer.FirstName))
-        {
-            _createCustomerError = "El nombre es obligatorio.";
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_newCustomer.LastName))
-        {
-            _createCustomerError = "El apellido es obligatorio.";
-            return;
-        }
-
-        _isSavingCustomer = true;
-
-        var savedCustomer = await CustomerApiService.CreateAsync(_newCustomer);
-
-        if (savedCustomer is not null)
-        {
-            _newCustomer                 = new CreateCustomerModel();
-            _isCreateCustomerSectionOpen = false;
-            await LoadCustomerPageAsync(1); // Refresh grid after creation
-        }
-        else
-        {
-            _createCustomerError = "Error al crear el cliente. Verifique los datos.";
-        }
-
-        _isSavingCustomer = false;
     }
 
     // ══ PRODUCT MODAL ══════════════════════════════════════════════════
@@ -1139,7 +1071,8 @@
             name:        _productSearchName,
             page:        page,
             pageSize:    10,
-            onlyInStock: true);  // Bug #2: solo mostrar productos con stock > 0
+            onlyInStock: true,   // Bug #2: solo mostrar productos con stock > 0
+            onlyActive:  true);  // Solo mostrar productos activos
     }
 
     private void SelectProductAndClose(ProductModel productModel)

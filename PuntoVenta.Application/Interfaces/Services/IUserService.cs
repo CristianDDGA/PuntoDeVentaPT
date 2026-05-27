@@ -11,4 +11,5 @@ public interface IUserService
     Task<bool> ChangePasswordAsync(int userId, ChangeUserPasswordDto dto);
     Task<bool> ActivateAsync(int userId);
     Task<bool> DeactivateAsync(int userId);
+    Task<bool> UnlockAsync(int userId);
 }

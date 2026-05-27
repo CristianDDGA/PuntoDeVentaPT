@@ -24,14 +24,14 @@ public class SecuritySeedService
 
         await EnsureUserAsync(
             _configuration["Security:DefaultAdminUsername"] ?? "admin",
-            _configuration["Security:DefaultAdminPassword"] ?? "Admin123*",
+            _configuration["Security:DefaultAdminPassword"] ?? "Adm1n#26",
             "Administrador",
             adminRole.RoleId,
             "admin@puntoventa.local");
 
         await EnsureUserAsync(
             _configuration["Security:DefaultSellerUsername"] ?? "seller",
-            _configuration["Security:DefaultSellerPassword"] ?? "Seller123*",
+            _configuration["Security:DefaultSellerPassword"] ?? "Sell3r#2",
             "Vendedor",
             sellerRole.RoleId,
             "seller@puntoventa.local");
@@ -56,7 +56,25 @@ public class SecuritySeedService
         var existingUser = await _context.Users.FirstOrDefaultAsync(user => user.Username == username);
 
         if (existingUser is not null)
+        {
+            bool needsUpdate = false;
+            if (string.IsNullOrWhiteSpace(existingUser.Email) && !string.IsNullOrWhiteSpace(email))
+            {
+                existingUser.UpdateProfile(existingUser.FullName, email);
+                needsUpdate = true;
+            }
+            
+            // Forzar actualización de la contraseña para que puedan ingresar con la nueva clave:
+            existingUser.ChangePasswordHash(SecurityPasswordHasher.HashPassword(password));
+            needsUpdate = true;
+            
+            if (needsUpdate)
+            {
+                _context.Users.Update(existingUser);
+                await _context.SaveChangesAsync();
+            }
             return;
+        }
 
         var user = User.Create(
             username,

@@ -22,14 +22,24 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDto?> LoginAsync(LoginRequestDto loginRequestDto)
     {
-        var username = loginRequestDto.Username.Trim();
-        var user = await _userRepository.GetByUsernameAsync(username);
+        var email = loginRequestDto.Email.Trim();
+        var user = await _userRepository.GetByEmailAsync(email);
 
         if (user is null || !user.IsActive || user.Role is null || !user.Role.IsActive)
             return null;
 
+        if (user.IsLocked)
+            throw new UnauthorizedAccessException("Su cuenta ha sido bloqueada debido a múltiples intentos fallidos. Contacte al administrador.");
+
         if (!SecurityPasswordHasher.VerifyPassword(loginRequestDto.Password, user.PasswordHash))
+        {
+            user.IncrementFailedAttempts();
+            await _userRepository.UpdateAsync(user);
             return null;
+        }
+
+        user.ResetFailedAttempts();
+        await _userRepository.UpdateAsync(user);
 
         var tokenMinutes = int.TryParse(_configuration["Security:TokenMinutes"], out var minutes)
             ? minutes

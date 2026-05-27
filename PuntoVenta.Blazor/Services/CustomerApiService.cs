@@ -44,14 +44,16 @@ public class CustomerApiService
         string? documentNumber = null,
         string? lastName       = null,
         int     page           = 1,
-        int     pageSize       = 10)
+        int     pageSize       = 10,
+        bool    onlyActive     = false)
     {
         try
         {
             var url = BuildPagedUrl("api/Customers/paged", page, pageSize,
                 customerId.HasValue ? $"customerId={customerId}" : null,
                 !string.IsNullOrWhiteSpace(documentNumber) ? $"documentNumber={Uri.EscapeDataString(documentNumber)}" : null,
-                !string.IsNullOrWhiteSpace(lastName) ? $"lastName={Uri.EscapeDataString(lastName)}" : null);
+                !string.IsNullOrWhiteSpace(lastName) ? $"lastName={Uri.EscapeDataString(lastName)}" : null,
+                onlyActive ? "onlyActive=true" : null);
 
             return await _httpClient.GetFromJsonAsync<PagedResultModel<CustomerModel>>(url);
         }
@@ -67,6 +69,26 @@ public class CustomerApiService
             return await response.Content.ReadFromJsonAsync<CustomerModel>();
         }
         catch { return null; }
+    }
+
+    public async Task<bool> ActivateAsync(int customerId)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsync($"api/Customers/{customerId}/activate", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> DeactivateAsync(int customerId)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsync($"api/Customers/{customerId}/deactivate", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

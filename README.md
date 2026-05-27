@@ -124,7 +124,7 @@ Este es el cerebro central. Sin él, las pantallas no tienen datos.
 2. Entra a la carpeta de las pantallas: `cd PuntoVenta.Blazor`
 3. Ejecuta el comando de encendido: `dotnet run`
    - *Resultado:* El sistema procesa todos los botones y colores, y automáticamente abre tu navegador web. A partir de este momento, cada vez que hagas clic en la pantalla, esta se comunicará por detrás con el servidor que encendiste en el Paso 1.
-
+4. Los usuarios que se crean son los siguientes: ADMIN:admin@puntoventa.local y la contraseña es: Admin123* y para SELLER:admin@puntoventa.local y la contraseña es: Seller123*
 ---
 
 ## 6. Preparar y subir el proyecto a GitHub

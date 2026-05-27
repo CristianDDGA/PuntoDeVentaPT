@@ -30,6 +30,14 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         userBuilder.Property(user => user.IsActive)
             .IsRequired();
 
+        userBuilder.Property(user => user.FailedLoginAttempts)
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        userBuilder.Property(user => user.IsLocked)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         userBuilder.HasIndex(user => user.Username)
             .IsUnique();
 

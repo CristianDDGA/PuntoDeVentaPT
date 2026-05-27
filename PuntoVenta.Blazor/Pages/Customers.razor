@@ -1,0 +1,299 @@
+@page "/clientes"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject CustomerApiService CustomerApiService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Clientes — Punto de Venta</PageTitle>
+
+<div class="section-gap">
+    <div>
+        <h1 style="font-size:var(--font-size-2xl); font-weight:var(--font-weight-bold); color:var(--color-text-primary); margin-bottom:4px;">Clientes</h1>
+        <p class="text-muted">Consulta el catálogo de clientes y administra su estado.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Filtros</span>
+            @if (_isAdmin)
+            {
+                <button class="btn btn--secondary btn--sm ml-auto" @onclick="OpenCreateModal">
+                    <i class="ph ph-plus"></i> Nuevo Cliente
+                </button>
+            }
+        </div>
+
+        <div style="display:grid; grid-template-columns: 180px 1fr auto; gap:var(--spacing-md); align-items:flex-end;">
+            <div class="field-group">
+                <label class="field-label">Documento</label>
+                <input class="field-input" @bind="_searchDocument" @bind:event="oninput" placeholder="Ej: 1720..." />
+            </div>
+            <div class="field-group">
+                <label class="field-label">Apellido</label>
+                <input class="field-input" @bind="_searchLastName" @bind:event="oninput" placeholder="Buscar por apellido" />
+            </div>
+            <button class="btn btn--primary" @onclick="() => LoadPageAsync(1)">Buscar</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="alert @(_isError ? "alert--error" : "alert--success")">@_message</div>
+    }
+
+    <div class="card">
+        @if (_isLoading)
+        {
+            <div class="flex-center" style="padding:var(--spacing-xl);"><div class="loader-ring"></div></div>
+        }
+        else if ((_pagedResult?.Items.Count ?? 0) == 0)
+        {
+            <div class="empty-state">
+                <p class="empty-state-text">No se encontraron clientes.</p>
+            </div>
+        }
+        else
+        {
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Documento</th>
+                            <th>Nombre</th>
+                            <th>Ciudad</th>
+                            <th>Email</th>
+                            <th class="align-center">Estado</th>
+                            @if (_isAdmin)
+                            {
+                                <th class="align-center">Acciones</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var customer in _pagedResult?.Items ?? [])
+                        {
+                            <tr>
+                                <td class="font-mono">@customer.CustomerId</td>
+                                <td>@customer.DocumentNumber</td>
+                                <td>@customer.FullName</td>
+                                <td>@customer.City</td>
+                                <td>@customer.Email</td>
+                                <td class="align-center">
+                                    <span class="badge @(customer.IsActive ? "badge--success" : "badge--error")">
+                                        @(customer.IsActive ? "Activo" : "Inactivo")
+                                    </span>
+                                </td>
+                                @if (_isAdmin)
+                                {
+                                    <td class="align-center">
+                                        @if (customer.IsActive)
+                                        {
+                                            <button class="btn btn--danger btn--sm" @onclick="() => DeactivateAsync(customer.CustomerId)" disabled="@_isBusy">Desactivar</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn--success btn--sm" @onclick="() => ActivateAsync(customer.CustomerId)" disabled="@_isBusy">Activar</button>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-top:var(--spacing-lg); align-items:center; gap:var(--spacing-md); flex-wrap:wrap;">
+                <span class="text-muted">@(_pagedResult?.TotalCount ?? 0) cliente(s) · Página @_currentPage de @(_pagedResult?.TotalPages ?? 1)</span>
+                <div class="pagination">
+                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage - 1)" disabled="@(_currentPage <= 1)">‹ Anterior</button>
+                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage + 1)" disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))">Siguiente ›</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (_isCreateModalOpen)
+{
+    <div class="modal-overlay">
+        <div class="modal-box" style="max-width: 600px;" @onclick:stopPropagation>
+            <div class="modal-header">
+                <span class="modal-title">Nuevo cliente</span>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseCreateModal"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:var(--spacing-md);">
+                    <div class="field-group">
+                        <label class="field-label">Documento</label>
+                        <input class="field-input" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" @bind="_newCustomer.DocumentNumber" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Nombre</label>
+                        <input class="field-input" @bind="_newCustomer.FirstName" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Apellido</label>
+                        <input class="field-input" @bind="_newCustomer.LastName" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Teléfono</label>
+                        <input class="field-input" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" @bind="_newCustomer.Phone" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Dirección</label>
+                        <input class="field-input" @bind="_newCustomer.Address" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Ciudad</label>
+                        <input class="field-input" @bind="_newCustomer.City" />
+                    </div>
+                    <div class="field-group" style="grid-column: span 2;">
+                        <label class="field-label">Email</label>
+                        <input class="field-input" @bind="_newCustomer.Email" />
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_modalMessage))
+                {
+                    <div class="alert @(_isModalError ? "alert--error" : "alert--success")" style="margin-top:var(--spacing-md);">@_modalMessage</div>
+                }
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button class="btn btn--ghost" @onclick="CloseCreateModal">Cancelar</button>
+                <button class="btn btn--success" @onclick="CreateCustomerAsync" disabled="@_isBusy">Crear cliente</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PagedResultModel<CustomerModel>? _pagedResult;
+    private int _currentPage = 1;
+    private string _searchDocument = string.Empty;
+    private string _searchLastName = string.Empty;
+    private bool _isLoading;
+    private bool _isBusy;
+    private bool _isAdmin;
+    private string? _message;
+    private bool _isError;
+    private bool _isCreateModalOpen;
+    private string? _modalMessage;
+    private bool _isModalError;
+    private readonly CreateCustomerModel _newCustomer = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ResolveRoleAsync();
+        await LoadPageAsync(1);
+    }
+
+    private async Task ResolveRoleAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isAdmin = authState.User.IsInRole("Admin");
+    }
+
+    private async Task LoadPageAsync(int page)
+    {
+        _isLoading = true;
+        _currentPage = page < 1 ? 1 : page;
+
+        try
+        {
+            _pagedResult = await CustomerApiService.SearchPagedAsync(
+                documentNumber: string.IsNullOrWhiteSpace(_searchDocument) ? null : _searchDocument.Trim(),
+                lastName: string.IsNullOrWhiteSpace(_searchLastName) ? null : _searchLastName.Trim(),
+                page: _currentPage,
+                pageSize: 10);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _isCreateModalOpen = true;
+        _modalMessage = null;
+        _newCustomer.DocumentNumber = string.Empty;
+        _newCustomer.FirstName = string.Empty;
+        _newCustomer.LastName = string.Empty;
+        _newCustomer.Phone = null;
+        _newCustomer.Address = null;
+        _newCustomer.City = null;
+        _newCustomer.Email = null;
+    }
+
+    private void CloseCreateModal()
+    {
+        _isCreateModalOpen = false;
+    }
+
+    private async Task CreateCustomerAsync()
+    {
+        _isBusy = true;
+        _modalMessage = null;
+
+        try
+        {
+            var saved = await CustomerApiService.CreateAsync(_newCustomer);
+            if (saved is null)
+            {
+                _modalMessage = "No se pudo crear el cliente.";
+                _isModalError = true;
+                return;
+            }
+
+            SetMessage("Cliente creado correctamente.", false);
+            CloseCreateModal();
+            await LoadPageAsync(1);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task ActivateAsync(int customerId)
+    {
+        _isBusy = true;
+        SetMessage(null, false);
+
+        try
+        {
+            var success = await CustomerApiService.ActivateAsync(customerId);
+            SetMessage(success ? "Cliente activado." : "No se pudo activar el cliente.", !success);
+            await LoadPageAsync(_currentPage);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task DeactivateAsync(int customerId)
+    {
+        _isBusy = true;
+        SetMessage(null, false);
+
+        try
+        {
+            var success = await CustomerApiService.DeactivateAsync(customerId);
+            SetMessage(success ? "Cliente desactivado." : "No se pudo desactivar el cliente.", !success);
+            await LoadPageAsync(_currentPage);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void SetMessage(string? message, bool isError)
+    {
+        _message = message;
+        _isError = isError;
+    }
+}

@@ -1,4 +1,3 @@
-using Mapster;
 using PuntoVenta.Application.Extensions;
 using PuntoVenta.Application.DTOs.Common;
 using PuntoVenta.Application.DTOs.Sale;
@@ -34,23 +33,7 @@ public class SaleService : ISaleService
     public async Task<IEnumerable<SaleDto>> GetAllAsync()
     {
         var allSales = await _saleRepository.GetAllAsync();
-        var dtos     = allSales.Adapt<IEnumerable<SaleDto>>().ToList();
-        
-        // Manual mapping for CustomerName since Mapster doesn't dig into Customer.FullName automatically
-        var salesList = allSales.ToList();
-        for (int i = 0; i < dtos.Count; i++)
-        {
-            dtos[i].CustomerName     = salesList[i].Customer?.FullName ?? string.Empty;
-            dtos[i].CustomerDocument = salesList[i].Customer?.DocumentNumber ?? string.Empty;
-            dtos[i].CustomerAddress  = salesList[i].Customer?.Address ?? string.Empty;
-            dtos[i].CustomerCity     = salesList[i].Customer?.City ?? string.Empty;
-            dtos[i].CustomerPhone    = salesList[i].Customer?.Phone ?? string.Empty;
-            dtos[i].CustomerEmail    = salesList[i].Customer?.Email ?? string.Empty;
-            dtos[i].PaymentType      = salesList[i].PaymentType.ToSpanish();
-            dtos[i].Status           = salesList[i].Status.ToSpanish();
-        }
-
-        return dtos;
+        return allSales.Select(MapSaleToDto).ToList();
     }
 
     public async Task<SaleDto?> GetByIdAsync(int saleId)
@@ -58,17 +41,7 @@ public class SaleService : ISaleService
         var existingSale = await _saleRepository.GetByIdAsync(saleId);
         if (existingSale == null) return null;
 
-        var dto              = existingSale.Adapt<SaleDto>();
-        dto.CustomerName     = existingSale.Customer?.FullName ?? string.Empty;
-        dto.CustomerDocument = existingSale.Customer?.DocumentNumber ?? string.Empty;
-        dto.CustomerAddress  = existingSale.Customer?.Address ?? string.Empty;
-        dto.CustomerCity     = existingSale.Customer?.City ?? string.Empty;
-        dto.CustomerPhone    = existingSale.Customer?.Phone ?? string.Empty;
-        dto.CustomerEmail    = existingSale.Customer?.Email ?? string.Empty;
-        dto.PaymentType      = existingSale.PaymentType.ToSpanish();
-        dto.Status           = existingSale.Status.ToSpanish();
-        
-        return dto;
+        return MapSaleToDto(existingSale);
     }
 
     public async Task<int> GetNextInvoiceNumberAsync()
@@ -121,17 +94,13 @@ public class SaleService : ISaleService
         var newSale   = Sale.Create(createSaleDto.CustomerId, paymentType, saleDetails);
         var savedSale = await _saleRepository.AddAsync(newSale);
 
-        var dto              = savedSale.Adapt<SaleDto>();
-        dto.CustomerName     = savedSale.Customer?.FullName ?? string.Empty;
-        dto.CustomerDocument = savedSale.Customer?.DocumentNumber ?? string.Empty;
-        dto.CustomerAddress  = savedSale.Customer?.Address ?? string.Empty;
-        dto.CustomerCity     = savedSale.Customer?.City ?? string.Empty;
-        dto.CustomerPhone    = savedSale.Customer?.Phone ?? string.Empty;
-        dto.CustomerEmail    = savedSale.Customer?.Email ?? string.Empty;
-        dto.PaymentType      = savedSale.PaymentType.ToSpanish();
-        dto.Status           = savedSale.Status.ToSpanish();
+        // Auto confirm sale to reduce stock as requested for POS workflow
+        await ConfirmSaleAsync(savedSale.SaleId);
+        
+        // Refresh the saved sale from DB to reflect the new Status and Stock modifications
+        savedSale = await _saleRepository.GetByIdAsync(savedSale.SaleId) ?? savedSale;
 
-        return dto;
+        return MapSaleToDto(savedSale);
     }
 
     public async Task<PagedResult<SaleDto>> SearchPagedAsync(
@@ -143,21 +112,8 @@ public class SaleService : ISaleService
     {
         var (items, totalCount) = await _saleRepository.SearchPagedAsync(saleId, customerName, page, pageSize, excludeVoided);
         
-        var dtos      = items.Adapt<IEnumerable<SaleDto>>().ToList();
-        var itemsList = items.ToList();
-        
-        for (int i = 0; i < dtos.Count; i++)
-        {
-            dtos[i].CustomerName     = itemsList[i].Customer?.FullName ?? string.Empty;
-            dtos[i].CustomerDocument = itemsList[i].Customer?.DocumentNumber ?? string.Empty;
-            dtos[i].CustomerAddress  = itemsList[i].Customer?.Address ?? string.Empty;
-            dtos[i].CustomerCity     = itemsList[i].Customer?.City ?? string.Empty;
-            dtos[i].CustomerPhone    = itemsList[i].Customer?.Phone ?? string.Empty;
-            dtos[i].CustomerEmail    = itemsList[i].Customer?.Email ?? string.Empty;
-            dtos[i].PaymentType      = itemsList[i].PaymentType.ToSpanish();
-            dtos[i].Status           = itemsList[i].Status.ToSpanish();
-        }
-        
+        var dtos = items.Select(MapSaleToDto).ToList();
+
         return PagedResult<SaleDto>.Create(dtos, totalCount, page, pageSize);
     }
 
@@ -259,5 +215,34 @@ public class SaleService : ISaleService
             await _unitOfWork.RollbackTransactionAsync();
             throw;
         }
+    }
+
+    private static SaleDto MapSaleToDto(Sale sale)
+    {
+        return new SaleDto
+        {
+            SaleId           = sale.SaleId,
+            CustomerId       = sale.CustomerId,
+            CustomerName     = sale.Customer?.FullName ?? string.Empty,
+            CustomerDocument = sale.Customer?.DocumentNumber ?? string.Empty,
+            CustomerAddress  = sale.Customer?.Address ?? string.Empty,
+            CustomerCity     = sale.Customer?.City ?? string.Empty,
+            CustomerPhone    = sale.Customer?.Phone ?? string.Empty,
+            CustomerEmail    = sale.Customer?.Email ?? string.Empty,
+            SaleDate         = sale.SaleDate,
+            PaymentType      = sale.PaymentType.ToSpanish(),
+            Subtotal         = sale.Subtotal,
+            TaxAmount        = sale.TaxAmount,
+            Total            = sale.Total,
+            Status           = sale.Status.ToSpanish(),
+            Details          = sale.Details.Select(detail => new SaleDetailDto
+            {
+                ProductId   = detail.ProductId,
+                ProductName = detail.Product?.Name ?? string.Empty,
+                Quantity    = detail.Quantity,
+                UnitPrice   = detail.UnitPrice,
+                Subtotal    = detail.Subtotal
+            }).ToList()
+        };
     }
 }

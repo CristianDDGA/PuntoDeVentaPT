@@ -47,12 +47,13 @@ public class CustomersController : ControllerBase
         [FromQuery] string? documentNumber = null,
         [FromQuery] string? lastName       = null,
         [FromQuery] int     page           = 1,
-        [FromQuery] int     pageSize       = 10)
+        [FromQuery] int     pageSize       = 10,
+        [FromQuery] bool    onlyActive     = false)
     {
         if (page < 1)     page     = 1;
         if (pageSize < 1) pageSize = 10;
 
-        var pagedResult = await _customerService.SearchPagedAsync(customerId, documentNumber, lastName, page, pageSize);
+        var pagedResult = await _customerService.SearchPagedAsync(customerId, documentNumber, lastName, page, pageSize, onlyActive);
         return Ok(pagedResult);
     }
 

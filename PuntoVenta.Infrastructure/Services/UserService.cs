@@ -70,4 +70,14 @@ public class UserService : IUserService
     public Task<bool> ActivateAsync(int userId) => _userRepository.ActivateAsync(userId);
 
     public Task<bool> DeactivateAsync(int userId) => _userRepository.DeactivateAsync(userId);
+
+    public async Task<bool> UnlockAsync(int userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user is null) return false;
+
+        user.UnlockUser();
+        await _userRepository.UpdateAsync(user);
+        return true;
+    }
 }

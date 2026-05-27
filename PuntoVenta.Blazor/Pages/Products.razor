@@ -1,0 +1,277 @@
+@page "/productos"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject ProductApiService ProductApiService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Productos — Punto de Venta</PageTitle>
+
+<div class="section-gap">
+    <div>
+        <h1 style="font-size:var(--font-size-2xl); font-weight:var(--font-weight-bold); color:var(--color-text-primary); margin-bottom:4px;">Productos</h1>
+        <p class="text-muted">Administra catálogo, stock y estado de productos.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Filtros</span>
+            @if (_isAdmin)
+            {
+                <button class="btn btn--secondary btn--sm ml-auto" @onclick="OpenCreateModal">
+                    <i class="ph ph-plus"></i> Nuevo Producto
+                </button>
+            }
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr auto auto; gap:var(--spacing-md); align-items:flex-end;">
+            <div class="field-group">
+                <label class="field-label">Nombre</label>
+                <input class="field-input" @bind="_searchName" @bind:event="oninput" placeholder="Buscar producto" />
+            </div>
+            <div class="field-group" style="flex-direction:row; align-items:center; gap:var(--spacing-sm);">
+                <input type="checkbox" @bind="_onlyInStock" />
+                <label class="field-label" style="margin:0;">Solo con stock</label>
+            </div>
+            <button class="btn btn--primary" @onclick="() => LoadPageAsync(1)">Buscar</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="alert @(_isError ? "alert--error" : "alert--success")">@_message</div>
+    }
+
+    <div class="card">
+        @if (_isLoading)
+        {
+            <div class="flex-center" style="padding:var(--spacing-xl);"><div class="loader-ring"></div></div>
+        }
+        else if ((_pagedResult?.Items.Count ?? 0) == 0)
+        {
+            <div class="empty-state">
+                <p class="empty-state-text">No se encontraron productos.</p>
+            </div>
+        }
+        else
+        {
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th class="align-right">Precio</th>
+                            <th class="align-right">Stock</th>
+                            <th class="align-center">Estado</th>
+                            @if (_isAdmin)
+                            {
+                                <th class="align-center">Acciones</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var product in _pagedResult?.Items ?? [])
+                        {
+                            <tr>
+                                <td class="font-mono">@product.ProductId</td>
+                                <td>@product.Name</td>
+                                <td class="td-numeric">$@product.Price.ToString("N2")</td>
+                                <td class="td-numeric">@product.Stock</td>
+                                <td class="align-center">
+                                    <span class="badge @(product.IsActive ? "badge--success" : "badge--error")">
+                                        @(product.IsActive ? "Activo" : "Inactivo")
+                                    </span>
+                                </td>
+                                @if (_isAdmin)
+                                {
+                                    <td class="align-center">
+                                        @if (product.IsActive)
+                                        {
+                                            <button class="btn btn--danger btn--sm" @onclick="() => DeactivateAsync(product.ProductId)" disabled="@_isBusy">Desactivar</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn--success btn--sm" @onclick="() => ActivateAsync(product.ProductId)" disabled="@_isBusy">Activar</button>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-top:var(--spacing-lg); align-items:center; gap:var(--spacing-md); flex-wrap:wrap;">
+                <span class="text-muted">@(_pagedResult?.TotalCount ?? 0) producto(s) · Página @_currentPage de @(_pagedResult?.TotalPages ?? 1)</span>
+                <div class="pagination">
+                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage - 1)" disabled="@(_currentPage <= 1)">‹ Anterior</button>
+                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage + 1)" disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))">Siguiente ›</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (_isCreateModalOpen)
+{
+    <div class="modal-overlay">
+        <div class="modal-box" @onclick:stopPropagation>
+            <div class="modal-header">
+                <span class="modal-title">Nuevo producto</span>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseCreateModal"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid form-grid-1">
+                    <div class="field-group">
+                        <label class="field-label">Nombre</label>
+                        <input class="field-input" @bind="_newProduct.Name" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Precio</label>
+                        <input class="field-input" type="number" step="0.01" min="0" @bind="_newProduct.Price" />
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Stock</label>
+                        <input class="field-input" type="number" min="0" @bind="_newProduct.Stock" />
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_modalMessage))
+                {
+                    <div class="alert @(_isModalError ? "alert--error" : "alert--success")" style="margin-top:var(--spacing-md);">@_modalMessage</div>
+                }
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button class="btn btn--ghost" @onclick="CloseCreateModal">Cancelar</button>
+                <button class="btn btn--success" @onclick="CreateProductAsync" disabled="@_isBusy">Crear producto</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PagedResultModel<ProductModel>? _pagedResult;
+    private int _currentPage = 1;
+    private string _searchName = string.Empty;
+    private bool _onlyInStock;
+    private bool _isLoading;
+    private bool _isBusy;
+    private bool _isAdmin;
+    private string? _message;
+    private bool _isError;
+    private bool _isCreateModalOpen;
+    private string? _modalMessage;
+    private bool _isModalError;
+    private readonly CreateProductModel _newProduct = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ResolveRoleAsync();
+        await LoadPageAsync(1);
+    }
+
+    private async Task ResolveRoleAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isAdmin = authState.User.IsInRole("Admin");
+    }
+
+    private async Task LoadPageAsync(int page)
+    {
+        _isLoading = true;
+        _currentPage = page < 1 ? 1 : page;
+
+        try
+        {
+            _pagedResult = await ProductApiService.SearchPagedAsync(
+                name: string.IsNullOrWhiteSpace(_searchName) ? null : _searchName.Trim(),
+                page: _currentPage,
+                pageSize: 10,
+                onlyInStock: _onlyInStock);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _isCreateModalOpen = true;
+        _modalMessage = null;
+        _newProduct.Name = string.Empty;
+        _newProduct.Price = 0;
+        _newProduct.Stock = 0;
+    }
+
+    private void CloseCreateModal()
+    {
+        _isCreateModalOpen = false;
+    }
+
+    private async Task CreateProductAsync()
+    {
+        _isBusy = true;
+        _modalMessage = null;
+
+        try
+        {
+            var saved = await ProductApiService.CreateAsync(_newProduct);
+            if (saved is null)
+            {
+                _modalMessage = "No se pudo crear el producto.";
+                _isModalError = true;
+                return;
+            }
+
+            SetMessage("Producto creado correctamente.", false);
+            CloseCreateModal();
+            await LoadPageAsync(1);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task ActivateAsync(int productId)
+    {
+        _isBusy = true;
+        SetMessage(null, false);
+
+        try
+        {
+            var success = await ProductApiService.ActivateAsync(productId);
+            SetMessage(success ? "Producto activado." : "No se pudo activar el producto.", !success);
+            await LoadPageAsync(_currentPage);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task DeactivateAsync(int productId)
+    {
+        _isBusy = true;
+        SetMessage(null, false);
+
+        try
+        {
+            var success = await ProductApiService.DeactivateAsync(productId);
+            SetMessage(success ? "Producto desactivado." : "No se pudo desactivar el producto.", !success);
+            await LoadPageAsync(_currentPage);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void SetMessage(string? message, bool isError)
+    {
+        _message = message;
+        _isError = isError;
+    }
+}

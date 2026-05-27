@@ -1,0 +1,249 @@
+@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject UserApiService UserApiService
+
+<PageTitle>Administración de Usuarios — Punto de Venta</PageTitle>
+
+<div class="section-gap">
+    <div>
+        <h1 style="font-size:var(--font-size-2xl); font-weight:var(--font-weight-bold); color:var(--color-text-primary); margin-bottom:4px; display:flex; align-items:center; gap:var(--spacing-sm);">
+            <i class="ph ph-users"></i> Administración de Usuarios
+        </h1>
+        <p style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">
+            Gestiona los usuarios, roles y accesos al sistema.
+        </p>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; margin-bottom:var(--spacing-md);">
+            <button class="btn btn--primary" @onclick="OpenCreateModal">
+                <i class="ph ph-plus-circle"></i> Nuevo Usuario
+            </button>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="flex-center" style="padding:var(--spacing-2xl);">
+                <div class="loader-ring"></div>
+            </div>
+        }
+        else
+        {
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre</th>
+                            <th>Correo</th>
+                            <th>Rol</th>
+                            <th class="align-center">Estado</th>
+                            <th class="align-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in _users)
+                        {
+                            <tr>
+                                <td class="font-mono">@user.Username</td>
+                                <td>@user.FullName</td>
+                                <td>@user.Email</td>
+                                <td><span class="badge badge--info">@user.RoleName</span></td>
+                                <td class="align-center">
+                                    @if (!user.IsActive)
+                                    {
+                                        <span class="badge badge--error">Inactivo</span>
+                                    }
+                                    else if (user.IsLocked)
+                                    {
+                                        <span class="badge badge--warning">Bloqueado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge--success">Activo</span>
+                                    }
+                                </td>
+                                <td class="align-center">
+                                    <div style="display:flex; gap:4px; justify-content:center;">
+                                        @if (user.IsLocked)
+                                        {
+                                            <button class="btn btn--warning btn--sm" title="Desbloquear" @onclick="() => UnlockUser(user.UserId)">
+                                                <i class="ph ph-lock-key-open"></i> Desbloquear
+                                            </button>
+                                        }
+                                        @if (user.IsActive)
+                                        {
+                                            <button class="btn btn--danger btn--sm" title="Desactivar" @onclick="() => DeactivateUser(user.UserId)">
+                                                <i class="ph ph-user-minus"></i> Desactivar
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn--success btn--sm" title="Activar" @onclick="() => ActivateUser(user.UserId)">
+                                                <i class="ph ph-user-plus"></i> Activar
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@if (_isModalOpen)
+{
+    <div class="modal-overlay">
+        <div class="modal-box" @onclick:stopPropagation>
+            <div class="modal-header">
+                <span class="modal-title"><i class="ph ph-user-plus"></i> Crear Nuevo Usuario</span>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseModal"><i class="ph ph-x"></i></button>
+            </div>
+            
+            <EditForm Model="_newUser" OnValidSubmit="HandleCreateUser">
+                <DataAnnotationsValidator />
+                
+                <div class="modal-body form-grid form-grid-2">
+                    <div class="field-group" style="grid-column: span 2;">
+                        <label class="field-label">Nombre de Usuario *</label>
+                        <InputText class="field-input" @bind-Value="_newUser.Username" />
+                        <ValidationMessage For="@(() => _newUser.Username)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">Contraseña *</label>
+                        <InputText class="field-input" type="password" @bind-Value="_newUser.Password" />
+                        <ValidationMessage For="@(() => _newUser.Password)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">Confirmar Contraseña *</label>
+                        <InputText class="field-input" type="password" @bind-Value="_newUser.ConfirmPassword" />
+                        <ValidationMessage For="@(() => _newUser.ConfirmPassword)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                    </div>
+
+                    <div class="field-group" style="grid-column: span 2;">
+                        <label class="field-label">Nombre Completo *</label>
+                        <InputText class="field-input" @bind-Value="_newUser.FullName" />
+                        <ValidationMessage For="@(() => _newUser.FullName)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                    </div>
+
+                    <div class="field-group" style="grid-column: span 2;">
+                        <label class="field-label">Correo Electrónico *</label>
+                        <InputText class="field-input" type="email" @bind-Value="_newUser.Email" />
+                        <ValidationMessage For="@(() => _newUser.Email)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                    </div>
+
+                    <div class="field-group" style="grid-column: span 2;">
+                        <label class="field-label">Rol *</label>
+                        <InputSelect class="field-input" @bind-Value="_newUser.RoleId">
+                            <option value="0">Seleccione un rol</option>
+                            @foreach (var role in _roles)
+                            {
+                                <option value="@role.RoleId">@role.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _newUser.RoleId)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="alert alert--error" style="grid-column: span 2;"><i class="ph ph-warning-circle"></i> @_errorMessage</div>
+                    }
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn--ghost" @onclick="CloseModal">Cancelar</button>
+                    <button type="submit" class="btn btn--primary" disabled="@_isSaving">
+                        @if (_isSaving) { <text><i class="ph ph-hourglass-high"></i> Guardando...</text> } else { <text><i class="ph ph-floppy-disk"></i> Guardar Usuario</text> }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UserModel> _users = [];
+    private List<RoleModel> _roles = [];
+    private bool _isLoading = true;
+    
+    private bool _isModalOpen = false;
+    private bool _isSaving = false;
+    private string _errorMessage = string.Empty;
+    private CreateUserModel _newUser = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _users = await UserApiService.GetAllAsync();
+        _roles = await UserApiService.GetRolesAsync();
+        _isLoading = false;
+    }
+
+    private void OpenCreateModal()
+    {
+        _newUser = new CreateUserModel();
+        _errorMessage = string.Empty;
+        _isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        _isModalOpen = false;
+    }
+
+    private async Task HandleCreateUser()
+    {
+        if (_newUser.RoleId <= 0)
+        {
+            _errorMessage = "Debe seleccionar un rol válido.";
+            return;
+        }
+
+        _isSaving = true;
+        _errorMessage = string.Empty;
+
+        var (success, error) = await UserApiService.CreateAsync(_newUser);
+
+        if (success)
+        {
+            await LoadDataAsync();
+            CloseModal();
+        }
+        else
+        {
+            _errorMessage = error;
+        }
+
+        _isSaving = false;
+    }
+
+    private async Task UnlockUser(int userId)
+    {
+        await UserApiService.UnlockAsync(userId);
+        await LoadDataAsync();
+    }
+
+    private async Task DeactivateUser(int userId)
+    {
+        await UserApiService.DeactivateAsync(userId);
+        await LoadDataAsync();
+    }
+
+    private async Task ActivateUser(int userId)
+    {
+        await UserApiService.ActivateAsync(userId);
+        await LoadDataAsync();
+    }
+}

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using PuntoVenta.Domain.Entities;
 using PuntoVenta.Domain.Exceptions;
 using PuntoVenta.Infrastructure.Persistence;
@@ -11,18 +12,15 @@ public class ExceptionMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionMiddleware> _logger;
     private readonly IHostEnvironment _environment;
-    private readonly AppDbContext _appDbContext;
 
     public ExceptionMiddleware(
         RequestDelegate next,
         ILogger<ExceptionMiddleware> logger,
-        IHostEnvironment environment,
-        AppDbContext appDbContext)
+        IHostEnvironment environment)
     {
         _next        = next;
         _logger      = logger;
         _environment = environment;
-        _appDbContext = appDbContext;
     }
 
     public async Task InvokeAsync(HttpContext httpContext)
@@ -82,14 +80,16 @@ public class ExceptionMiddleware
     {
         try
         {
+            var appDbContext = httpContext.RequestServices.GetRequiredService<AppDbContext>();
+
             var errorLog = ErrorLog.Create(
                 exception.Message,
                 exception.ToString(),
                 httpContext.Request.Path.Value,
                 httpContext.Request.Method);
 
-            await _appDbContext.ErrorLogs.AddAsync(errorLog);
-            await _appDbContext.SaveChangesAsync();
+            await appDbContext.ErrorLogs.AddAsync(errorLog);
+            await appDbContext.SaveChangesAsync();
         }
         catch (Exception loggingException)
         {
