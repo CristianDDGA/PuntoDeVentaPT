@@ -1,5 +1,6 @@
 using FluentValidation;
 using PuntoVenta.Infrastructure;
+using PuntoVenta.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +12,7 @@ builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<DataSeedingService>();
 
 builder.Services.AddCors(corsOptions =>
     corsOptions.AddPolicy("BlazorPolicy", corsPolicy =>
