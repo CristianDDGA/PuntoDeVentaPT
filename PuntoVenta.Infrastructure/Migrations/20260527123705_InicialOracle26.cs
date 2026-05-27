@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PuntoVenta.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddCustomerLastNameIndex : Migration
+    public partial class InicialOracle26 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,13 +15,15 @@ namespace PuntoVenta.Infrastructure.Migrations
                 name: "Customers",
                 columns: table => new
                 {
-                    CustomerId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Phone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    Address = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    Email = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true)
+                    CustomerId = table.Column<int>(type: "NUMBER(10)", nullable: false)
+                        .Annotation("Oracle:Identity", "START WITH 1 INCREMENT BY 1"),
+                    DocumentNumber = table.Column<string>(type: "NVARCHAR2(20)", maxLength: 20, nullable: false),
+                    FirstName = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
+                    LastName = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
+                    Phone = table.Column<string>(type: "NVARCHAR2(20)", maxLength: 20, nullable: true),
+                    Address = table.Column<string>(type: "NVARCHAR2(200)", maxLength: 200, nullable: true),
+                    City = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: true),
+                    Email = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -32,11 +34,11 @@ namespace PuntoVenta.Infrastructure.Migrations
                 name: "Products",
                 columns: table => new
                 {
-                    ProductId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    ProductId = table.Column<int>(type: "NUMBER(10)", nullable: false)
+                        .Annotation("Oracle:Identity", "START WITH 1 INCREMENT BY 1"),
+                    Name = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: false),
                     Price = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
-                    Stock = table.Column<int>(type: "int", nullable: false)
+                    Stock = table.Column<int>(type: "NUMBER(10)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -47,14 +49,15 @@ namespace PuntoVenta.Infrastructure.Migrations
                 name: "Sales",
                 columns: table => new
                 {
-                    SaleId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CustomerId = table.Column<int>(type: "int", nullable: false),
-                    SaleDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    PaymentType = table.Column<byte>(type: "tinyint", nullable: false),
+                    SaleId = table.Column<int>(type: "NUMBER(10)", nullable: false)
+                        .Annotation("Oracle:Identity", "START WITH 1 INCREMENT BY 1"),
+                    CustomerId = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    SaleDate = table.Column<DateTime>(type: "TIMESTAMP(7)", nullable: false),
+                    PaymentType = table.Column<byte>(type: "NUMBER(3)", nullable: false),
                     Subtotal = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
                     TaxAmount = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
-                    Total = table.Column<decimal>(type: "decimal(10,2)", nullable: false)
+                    Total = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
+                    Status = table.Column<byte>(type: "NUMBER(3)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -71,11 +74,11 @@ namespace PuntoVenta.Infrastructure.Migrations
                 name: "SaleDetails",
                 columns: table => new
                 {
-                    SaleDetailId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SaleId = table.Column<int>(type: "int", nullable: false),
-                    ProductId = table.Column<int>(type: "int", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    SaleDetailId = table.Column<int>(type: "NUMBER(10)", nullable: false)
+                        .Annotation("Oracle:Identity", "START WITH 1 INCREMENT BY 1"),
+                    SaleId = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    ProductId = table.Column<int>(type: "NUMBER(10)", nullable: false),
+                    Quantity = table.Column<int>(type: "NUMBER(10)", nullable: false),
                     UnitPrice = table.Column<decimal>(type: "decimal(10,2)", nullable: false)
                 },
                 constraints: table =>
@@ -99,6 +102,11 @@ namespace PuntoVenta.Infrastructure.Migrations
                 name: "inx_apellido",
                 table: "Customers",
                 column: "LastName");
+
+            migrationBuilder.CreateIndex(
+                name: "inx_documento",
+                table: "Customers",
+                column: "DocumentNumber");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SaleDetails_ProductId",

@@ -2,9 +2,9 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Oracle.EntityFrameworkCore.Metadata;
 using PuntoVenta.Infrastructure.Persistence;
 
 #nullable disable
@@ -12,8 +12,8 @@ using PuntoVenta.Infrastructure.Persistence;
 namespace PuntoVenta.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260427173903_AddSaleStatus")]
-    partial class AddSaleStatus
+    [Migration("20260527125932_SemillaClientesPrueba")]
+    partial class SemillaClientesPrueba
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -23,64 +23,100 @@ namespace PuntoVenta.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            OracleModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.Entity("PuntoVenta.Domain.Entities.Customer", b =>
                 {
                     b.Property<int>("CustomerId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CustomerId"));
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CustomerId"));
 
                     b.Property<string>("Address")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("NVARCHAR2(200)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("NVARCHAR2(100)");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("NVARCHAR2(20)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("NVARCHAR2(150)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("NVARCHAR2(100)");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("NVARCHAR2(100)");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("NVARCHAR2(20)");
 
                     b.HasKey("CustomerId");
+
+                    b.HasIndex("DocumentNumber")
+                        .HasDatabaseName("inx_documento");
 
                     b.HasIndex("LastName")
                         .HasDatabaseName("inx_apellido");
 
                     b.ToTable("Customers", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            CustomerId = 1,
+                            Address = "Av. Cevallos y Espejo",
+                            City = "Ambato",
+                            DocumentNumber = "1850123456",
+                            Email = "juan.perez@gmail.com",
+                            FirstName = "Juan",
+                            LastName = "Pérez",
+                            Phone = "0999999991"
+                        },
+                        new
+                        {
+                            CustomerId = 2,
+                            Address = "Av. de los Shyris",
+                            City = "Quito",
+                            DocumentNumber = "1720123456",
+                            Email = "maria.lopez@gmail.com",
+                            FirstName = "María",
+                            LastName = "López",
+                            Phone = "0999999992"
+                        });
                 });
 
             modelBuilder.Entity("PuntoVenta.Domain.Entities.Product", b =>
                 {
                     b.Property<int>("ProductId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"));
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("NVARCHAR2(150)");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<int>("Stock")
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
                     b.HasKey("ProductId");
 
@@ -91,21 +127,21 @@ namespace PuntoVenta.Infrastructure.Migrations
                 {
                     b.Property<int>("SaleId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SaleId"));
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SaleId"));
 
                     b.Property<int>("CustomerId")
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
                     b.Property<byte>("PaymentType")
-                        .HasColumnType("tinyint");
+                        .HasColumnType("NUMBER(3)");
 
                     b.Property<DateTime>("SaleDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("TIMESTAMP(7)");
 
                     b.Property<byte>("Status")
-                        .HasColumnType("tinyint");
+                        .HasColumnType("NUMBER(3)");
 
                     b.Property<decimal>("Subtotal")
                         .HasColumnType("decimal(10,2)");
@@ -127,18 +163,18 @@ namespace PuntoVenta.Infrastructure.Migrations
                 {
                     b.Property<int>("SaleDetailId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SaleDetailId"));
+                    OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SaleDetailId"));
 
                     b.Property<int>("ProductId")
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
                     b.Property<int>("Quantity")
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
                     b.Property<int>("SaleId")
-                        .HasColumnType("int");
+                        .HasColumnType("NUMBER(10)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(10,2)");

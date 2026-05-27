@@ -42,5 +42,30 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 
         customerBuilder.HasIndex(customer => customer.DocumentNumber)
             .HasDatabaseName("inx_documento");
+        // Quitamos la palabra "Customer" después de cada "new"
+        customerBuilder.HasData(
+            new
+            {
+                CustomerId = 1,
+                DocumentNumber = "1850123456",
+                FirstName = "Juan",
+                LastName = "Pérez",
+                Phone = "0999999991",
+                Address = "Av. Cevallos y Espejo",
+                City = "Ambato",
+                Email = "juan.perez@gmail.com"
+            },
+            new
+            {
+                CustomerId = 2,
+                DocumentNumber = "1720123456",
+                FirstName = "María",
+                LastName = "López",
+                Phone = "0999999992",
+                Address = "Av. de los Shyris",
+                City = "Quito",
+                Email = "maria.lopez@gmail.com"
+            }
+        );
     }
 }

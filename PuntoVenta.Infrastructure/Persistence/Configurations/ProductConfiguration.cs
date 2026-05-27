@@ -16,10 +16,36 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .IsRequired()
             .HasMaxLength(150);
 
+        // Ajustado para compatibilidad nativa con Oracle (NUMBER en lugar de decimal)
         productBuilder.Property(product => product.Price)
-            .HasColumnType("decimal(10,2)");
+            .HasColumnType("NUMBER(10,2)");
 
         productBuilder.Property(product => product.Stock)
             .IsRequired();
+
+        // 🚀 NUEVO: Agregamos los productos semilla usando objetos anónimos
+        productBuilder.HasData(
+            new
+            {
+                ProductId = 1,
+                Name = "Teclado 1",
+                Price = 1.50m,
+                Stock = 50
+            },
+            new
+            {
+                ProductId = 2,
+                Name = "Proyecto Epson",
+                Price = 0.80m,
+                Stock = 100
+            },
+            new
+            {
+                ProductId = 3,
+                Name = "Laptop HP ",
+                Price = 1.20m,
+                Stock = 30
+            }
+        );
     }
 }

@@ -16,24 +16,25 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Base de datos
+        // 1. CAMBIO AQUÍ: Cambiamos UseSqlServer por UseOracle
         services.AddDbContext<AppDbContext>(dbContextOptions =>
-            dbContextOptions.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection")));
+            dbContextOptions.UseOracle(
+                configuration.GetConnectionString("DefaultConnection"),
+                b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))); // Esto asegura que encuentre las migraciones aquí
 
-        // Repositorios
+        // Repositorios (Se quedan exactamente igual)
         services.AddScoped<ICustomerRepository, CustomerRepository>();
-        services.AddScoped<IProductRepository,  ProductRepository>();
-        services.AddScoped<ISaleRepository,     SaleRepository>();
-        services.AddScoped<IUnitOfWork,         UnitOfWork>();
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<ISaleRepository, SaleRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        // Servicios de Application
+        // Servicios de Application (Se quedan exactamente igual)
         services.AddScoped<ICustomerService, CustomerService>();
-        services.AddScoped<IProductService,  ProductService>();
-        services.AddScoped<ISaleService,     SaleService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<ISaleService, SaleService>();
 
-        // Servicios de Infrastructure
-        services.AddScoped<IPdfService,       PdfService>();
+        // Servicios de Infrastructure (Se quedan exactamente igual)
+        services.AddScoped<IPdfService, PdfService>();
         services.AddScoped<IDashboardService, DashboardService>();
 
         return services;
