@@ -49,9 +49,10 @@ public class ProductService : IProductService
         int?    productId,
         string? name,
         int     page,
-        int     pageSize)
+        int     pageSize,
+        bool    onlyInStock = false)
     {
-        var (items, totalCount) = await _productRepository.SearchPagedAsync(productId, name, page, pageSize);
+        var (items, totalCount) = await _productRepository.SearchPagedAsync(productId, name, page, pageSize, onlyInStock);
         var productDtos         = items.Adapt<IEnumerable<ProductDto>>();
         return PagedResult<ProductDto>.Create(productDtos, totalCount, page, pageSize);
     }

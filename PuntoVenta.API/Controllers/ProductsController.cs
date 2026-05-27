@@ -40,15 +40,16 @@ public class ProductsController : ControllerBase
     /// </summary>
     [HttpGet("paged")]
     public async Task<IActionResult> GetPaged(
-        [FromQuery] int?    productId = null,
-        [FromQuery] string? name      = null,
-        [FromQuery] int     page      = 1,
-        [FromQuery] int     pageSize  = 10)
+        [FromQuery] int?    productId   = null,
+        [FromQuery] string? name        = null,
+        [FromQuery] int     page        = 1,
+        [FromQuery] int     pageSize    = 10,
+        [FromQuery] bool    onlyInStock = false)
     {
         if (page < 1)     page     = 1;
         if (pageSize < 1) pageSize = 10;
 
-        var pagedResult = await _productService.SearchPagedAsync(productId, name, page, pageSize);
+        var pagedResult = await _productService.SearchPagedAsync(productId, name, page, pageSize, onlyInStock);
         return Ok(pagedResult);
     }
 

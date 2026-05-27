@@ -67,9 +67,14 @@ public class ProductRepository : IProductRepository
         int?    productId,
         string? name,
         int     page,
-        int     pageSize)
+        int     pageSize,
+        bool    onlyInStock = false)
     {
         var query = _appDbContext.Products.AsNoTracking();
+
+        // Filtrar solo productos con stock disponible (para el modal de venta)
+        if (onlyInStock)
+            query = query.Where(product => product.Stock > 0);
 
         if (productId.HasValue)
         {

@@ -12,41 +12,6 @@
 
 <div class="section-gap">
 
-    <!-- ══ INVOICE HEADER ══════════════════════════════════════════════ -->
-    <div class="invoice-header">
-        <div style="display:flex; gap:var(--spacing-md); flex-wrap:wrap;">
-            <div class="invoice-number-badge">
-                <span class="invoice-number-label">Nº Factura</span>
-                <span class="invoice-number-value">#@_nextInvoiceNumber.ToString("D6")</span>
-            </div>
-            <div class="invoice-date-badge">
-                <span class="invoice-date-label">Fecha</span>
-                <span class="invoice-date-value">@DateTime.Now.ToString("dd/MM/yyyy")</span>
-            </div>
-        </div>
-        <div class="flex gap-md" style="flex-wrap:wrap; margin-left:auto;">
-            <button class="btn btn--ghost" @onclick="OpenSaleHistoryModal">
-                 <i class="ph ph-receipt"></i> Buscar Facturas
-            </button>
-            <button class="btn btn--primary btn--lg" @onclick="CreateSale" disabled="@_isProcessing">
-                @if (_isProcessing)
-                {
-                    <span><i class="ph ph-hourglass-high"></i> Procesando...</span>
-                }
-                else
-                {
-                    <span><i class="ph ph-file-pdf"></i> Facturar (PDF)</span>
-                }
-            </button>
-        </div>
-    </div>
-
-    <!-- ══ ERROR MESSAGE ═════════════════════════════════════════════════ -->
-    @if (!string.IsNullOrEmpty(_errorMessage))
-    {
-        <div class="alert alert--error"><i class="ph ph-warning-circle"></i> @_errorMessage</div>
-    }
-
     <!-- ══ CUSTOMER SECTION ══════════════════════════════════════════════ -->
     <div class="card">
         <div class="card-header">
@@ -138,8 +103,8 @@
                            min="1"
                            max="@(_selectedProduct?.Stock ?? 1)"
                            style="width:80px;"
-                           @bind-value="_selectedQuantity"
-                           @bind-value:event="oninput" />
+                           value="@_selectedQuantity"
+                           @oninput="OnSelectionQuantityInput" />
                     <button class="btn btn--xs btn--max" 
                             style="height:38px;"
                             type="button"
@@ -214,8 +179,8 @@
                                                type="number"
                                                min="1"
                                                max="@saleDetailModel.MaxStock"
-                                               @bind-value="saleDetailModel.Quantity"
-                                               @bind-value:event="oninput" />
+                                               value="@saleDetailModel.Quantity"
+                                               @oninput="(e) => OnDetailQuantityInput(e, saleDetailModel)" />
                                         <button class="btn btn--xs btn--max" 
                                                 type="button"
                                                 title="Usar stock máximo (Actualizado)"
@@ -266,12 +231,52 @@
         }
     </div>
 
+    <!-- ══ ERROR MESSAGE ════════════════════════════════════════════════ -->
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert--error"><i class="ph ph-warning-circle"></i> @_errorMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert--success"><i class="ph ph-check-circle"></i> @_successMessage</div>
+    }
+
+    <!-- ══ INVOICE HEADER ════════════════════════════════════════════════ -->
+    <div class="invoice-header">
+        <div style="display:flex; gap:var(--spacing-md); flex-wrap:wrap;">
+            <div class="invoice-number-badge">
+                <span class="invoice-number-label">Nº Factura</span>
+                <span class="invoice-number-value">#@_nextInvoiceNumber.ToString("D6")</span>
+            </div>
+            <div class="invoice-date-badge">
+                <span class="invoice-date-label">Fecha</span>
+                <span class="invoice-date-value">@DateTime.Now.ToString("dd/MM/yyyy")</span>
+            </div>
+        </div>
+        <div class="flex gap-md" style="flex-wrap:wrap; margin-left:auto;">
+            <button class="btn btn--ghost" @onclick="OpenSaleHistoryModal">
+                <i class="ph ph-receipt"></i> Buscar Facturas
+            </button>
+            <button class="btn btn--primary btn--lg" @onclick="CreateSale" disabled="@_isProcessing">
+                @if (_isProcessing)
+                {
+                    <span><i class="ph ph-hourglass-high"></i> Procesando...</span>
+                }
+                else
+                {
+                    <span><i class="ph ph-file-pdf"></i> Facturar (PDF)</span>
+                }
+            </button>
+        </div>
+    </div>
+
 </div>
 
 <!-- ══ MODAL: CUSTOMER SEARCH ════════════════════════════════════════════ -->
 @if (_isCustomerModalOpen)
 {
-    <div class="modal-overlay" @onclick="CloseCustomerModal">
+    <div class="modal-overlay">
         <div class="modal-box modal-box--wide" @onclick:stopPropagation>
 
             <div class="modal-header">
@@ -433,7 +438,7 @@
 <!-- ══ MODAL: PRODUCT SEARCH ════════════════════════════════════════════ -->
 @if (_isProductModalOpen)
 {
-    <div class="modal-overlay" @onclick="CloseProductModal">
+    <div class="modal-overlay">
         <div class="modal-box" @onclick:stopPropagation>
 
             <div class="modal-header">
@@ -552,7 +557,7 @@
 <!-- ══ MODAL: SALE HISTORY ════════════════════════════════════════════════ -->
 @if (_isSaleHistoryModalOpen)
 {
-    <div class="modal-overlay" @onclick="CloseSaleHistoryModal">
+    <div class="modal-overlay">
         <div class="modal-box modal-box--wide" @onclick:stopPropagation>
 
             <div class="modal-header">
@@ -662,7 +667,7 @@
 <!-- ══ MODAL: PDF PREVIEW ══════════════════════════════════════════════ -->
 @if (_isPdfPreviewModalOpen)
 {
-    <div class="modal-overlay" @onclick="ClosePdfPreviewModal">
+    <div class="modal-overlay">
         <div class="modal-box modal-box--wide" style="height: 88vh; display: flex; flex-direction: column;" @onclick:stopPropagation>
             <div class="modal-header">
                 <span class="modal-title"><i class="ph ph-file-pdf"></i> Vista Previa de Factura</span>
@@ -694,10 +699,12 @@
     private ProductModel?        _selectedProduct;
     private int                  _selectedQuantity  = 1;
     private List<SaleDetailModel> _saleDetails      = [];
-    private string               _errorMessage      = string.Empty;
-    private bool                 _isProcessing      = false;
+    private string               _errorMessage        = string.Empty;
+    private string               _successMessage      = string.Empty;
+    private bool                 _isProcessing        = false;
     private string               _selectedPaymentType = "Cash";
     private Timer?               _invoiceRefreshTimer;
+    private Timer?               _productSearchDebounceTimer;
 
     // ── PDF Preview ─────────────────────────────────────────────────────
     private bool   _isPdfPreviewModalOpen = false;
@@ -761,6 +768,8 @@
     { 
         _invoiceRefreshTimer?.Stop();
         _invoiceRefreshTimer?.Dispose();
+        _productSearchDebounceTimer?.Stop();
+        _productSearchDebounceTimer?.Dispose();
     }
 
     // ── Set quantity to max stock (Fetch latest from API) ────────────────
@@ -797,7 +806,23 @@
         }
     }
 
+    // ── Quantity clamping handlers (Bug #3) ──────────────────────────────
+
+    private void OnSelectionQuantityInput(ChangeEventArgs e)
+    {
+        if (_selectedProduct is null) return;
+        if (int.TryParse(e.Value?.ToString(), out var parsed))
+            _selectedQuantity = Math.Clamp(parsed, 1, _selectedProduct.Stock);
+    }
+
+    private void OnDetailQuantityInput(ChangeEventArgs e, SaleDetailModel detail)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var parsed))
+            detail.Quantity = Math.Clamp(parsed, 1, detail.MaxStock);
+    }
+
     // ── Add product to sale detail ──────────────────────────────────────
+
 
     private void AddProductToSale()
     {
@@ -1090,20 +1115,31 @@
         _productSearchName = string.Empty;
     }
 
-    private void OnProductSearchNameInput(ChangeEventArgs e)
+    private async void OnProductSearchNameInput(ChangeEventArgs e)
     {
         _productSearchName = e.Value?.ToString() ?? string.Empty;
         _productSearchId   = null;
+
+        // Debounce: esperar 400ms antes de disparar la búsqueda
+        _productSearchDebounceTimer?.Stop();
+        _productSearchDebounceTimer?.Dispose();
+        _productSearchDebounceTimer = new Timer(400) { AutoReset = false };
+        _productSearchDebounceTimer.Elapsed += async (_, _) =>
+        {
+            await InvokeAsync(() => LoadProductPageAsync(1));
+        };
+        _productSearchDebounceTimer.Start();
     }
 
     private async Task LoadProductPageAsync(int page)
     {
         _productCurrentPage = page;
         _productPagedResult = await ProductApiService.SearchPagedAsync(
-            productId: _productSearchId,
-            name:      _productSearchName,
-            page:      page,
-            pageSize:  10);
+            productId:   _productSearchId,
+            name:        _productSearchName,
+            page:        page,
+            pageSize:    10,
+            onlyInStock: true);  // Bug #2: solo mostrar productos con stock > 0
     }
 
     private void SelectProductAndClose(ProductModel productModel)

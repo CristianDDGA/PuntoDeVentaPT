@@ -43,16 +43,18 @@ public class ProductApiService
     }
 
     public async Task<PagedResultModel<ProductModel>?> SearchPagedAsync(
-        int?    productId = null,
-        string? name      = null,
-        int     page      = 1,
-        int     pageSize  = 10)
+        int?    productId   = null,
+        string? name        = null,
+        int     page        = 1,
+        int     pageSize    = 10,
+        bool    onlyInStock = false)
     {
         try
         {
             var url = BuildPagedUrl("api/Products/paged", page, pageSize,
                 productId.HasValue ? $"productId={productId}" : null,
-                !string.IsNullOrWhiteSpace(name) ? $"name={Uri.EscapeDataString(name)}" : null);
+                !string.IsNullOrWhiteSpace(name) ? $"name={Uri.EscapeDataString(name)}" : null,
+                onlyInStock ? "onlyInStock=true" : null);
 
             return await _httpClient.GetFromJsonAsync<PagedResultModel<ProductModel>>(url);
         }

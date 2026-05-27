@@ -17,5 +17,6 @@ public interface IProductService
         int?    productId,
         string? name,
         int     page,
-        int     pageSize);
+        int     pageSize,
+        bool    onlyInStock = false);
 }
