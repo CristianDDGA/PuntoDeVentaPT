@@ -13,7 +13,8 @@ public class CustomerRepository : ICustomerRepository
     {
         _appDbContext = appDbContext;
     }
-
+    public async Task<int> GetTotalCustomersCountAsync()
+    => await _appDbContext.Customers.AsNoTracking().CountAsync();
     public async Task<IEnumerable<Customer>> GetAllAsync()
         => await _appDbContext.Customers
             .AsNoTracking()

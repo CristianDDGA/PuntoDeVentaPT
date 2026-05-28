@@ -1,3 +1,4 @@
+using PuntoVenta.Application.DTOs.Dashboard;
 using PuntoVenta.Domain.Entities;
 
 namespace PuntoVenta.Application.Interfaces.Repositories;
@@ -8,7 +9,10 @@ public interface ISaleRepository
     Task<Sale?>             GetByIdAsync(int saleId);
     Task<Sale?>             GetByIdTrackedAsync(int saleId);
     Task<Sale>              AddAsync(Sale sale);
-    Task                    UpdateAsync(Sale sale);
+    Task                    UpdateAsync(Sale sale); Task<int> GetTotalSalesCountAsync();
+    Task<IEnumerable<(decimal Total, DateTime SaleDate)>> GetSalesStatsOptimizedAsync();
+    Task<List<RecentSaleDto>> GetRecentSalesDashboardAsync(int count);
+    Task<List<TopProductDto>> GetTopProductsDashboardAsync(int days, int topCount);
 
     /// <summary>
     /// Returns the highest SaleId currently stored, or 0 if no sales exist.

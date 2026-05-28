@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PuntoVenta.Application.DTOs.Dashboard;
 using PuntoVenta.Application.Interfaces.Repositories;
 using PuntoVenta.Domain.Entities;
 using PuntoVenta.Infrastructure.Persistence;
@@ -101,5 +102,57 @@ public class SaleRepository : ISaleRepository
             .ToListAsync();
 
         return (items, totalCount);
+    }
+    // 🚀 1. Conteo rápido de ventas sin cargar nada en memoria
+    public async Task<int> GetTotalSalesCountAsync()
+        => await _appDbContext.Sales.AsNoTracking().CountAsync();
+
+    // 🚀 2. Solo descarga el Total y la Fecha de las 100k ventas. ¡No descarga Clientes ni Detalles!
+    public async Task<IEnumerable<(decimal Total, DateTime SaleDate)>> GetSalesStatsOptimizedAsync()
+    {
+        var data = await _appDbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status != Domain.Enums.SaleStatus.Cancelled)
+            .Select(s => new { s.Total, s.SaleDate })
+            .ToListAsync();
+
+        return data.Select(x => (x.Total, x.SaleDate));
+    }
+
+    // 🚀 3. Trae estrictamente las últimas 8 ventas procesadas por Oracle
+    public async Task<List<RecentSaleDto>> GetRecentSalesDashboardAsync(int count)
+        => await _appDbContext.Sales
+            .AsNoTracking()
+            .OrderByDescending(s => s.SaleDate)
+            .Take(count)
+            .Select(s => new RecentSaleDto
+            {
+                SaleId = s.SaleId,
+                CustomerName = (s.Customer.FirstName + " " + s.Customer.LastName).Trim(),
+                SaleDate = s.SaleDate,
+                Total = s.Total,
+                Status = s.Status.ToString() // O la extensión que mapee a texto
+            })
+            .ToListAsync();
+
+    // 🚀 4. El motor de Oracle procesa los 100k datos del mes y te regresa SOLO 5 filas por red
+    public async Task<List<TopProductDto>> GetTopProductsDashboardAsync(int days, int topCount)
+    {
+        var limitDate = DateTime.Today.AddDays(-days);
+
+        return await _appDbContext.SaleDetails
+            .AsNoTracking()
+            .Where(d => d.Sale.Status != Domain.Enums.SaleStatus.Cancelled && d.Sale.SaleDate >= limitDate)
+            .GroupBy(d => new { d.ProductId, d.Product.Name })
+            .Select(g => new TopProductDto
+            {
+                ProductId = g.Key.ProductId,
+                ProductName = g.Key.Name ?? string.Empty,
+                TotalUnits = g.Sum(d => d.Quantity),
+                TotalRevenue = g.Sum(d => d.Quantity * d.UnitPrice)
+            })
+            .OrderByDescending(p => p.TotalUnits)
+            .Take(topCount)
+            .ToListAsync();
     }
 }

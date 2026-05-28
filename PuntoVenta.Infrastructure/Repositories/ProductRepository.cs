@@ -13,7 +13,8 @@ public class ProductRepository : IProductRepository
     {
         _appDbContext = appDbContext;
     }
-
+    public async Task<int> GetTotalProductsCountAsync()
+    => await _appDbContext.Products.AsNoTracking().CountAsync();
     public async Task<IEnumerable<Product>> GetAllAsync()
         => await _appDbContext.Products
             .AsNoTracking()

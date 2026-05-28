@@ -9,6 +9,9 @@ public class SaleDetail
     public int     ProductId    { get; private set; }
     public int     Quantity     { get; private set; }
     public decimal UnitPrice    { get; private set; }
+    // Propiedad de navegación hacia la cabecera de la venta
+
+    public Sale Sale { get; set; } = null!;
     public decimal Subtotal     => Quantity * UnitPrice;
 
     // Navegación

@@ -3,95 +3,74 @@ using PuntoVenta.Application.DTOs.Dashboard;
 using PuntoVenta.Application.Interfaces.Repositories;
 using PuntoVenta.Application.Interfaces.Services;
 using PuntoVenta.Domain.Enums;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace PuntoVenta.Application.Services;
 
 public class DashboardService : IDashboardService
 {
-    private readonly ISaleRepository     _saleRepository;
+    private readonly ISaleRepository _saleRepository;
     private readonly ICustomerRepository _customerRepository;
-    private readonly IProductRepository  _productRepository;
+    private readonly IProductRepository _productRepository;
 
     public DashboardService(
-        ISaleRepository     saleRepository,
+        ISaleRepository saleRepository,
         ICustomerRepository customerRepository,
-        IProductRepository  productRepository)
+        IProductRepository productRepository)
     {
-        _saleRepository     = saleRepository;
+        _saleRepository = saleRepository;
         _customerRepository = customerRepository;
-        _productRepository  = productRepository;
+        _productRepository = productRepository;
     }
 
     public async Task<DashboardStatsDto> GetStatsAsync()
     {
-        var allSalesData = await _saleRepository.GetAllAsync();
-        var allSales     = allSalesData.ToList();
-        var validSales   = allSales.Where(s => s.Status != SaleStatus.Cancelled).ToList();
-        
-        var allCustomers = (await _customerRepository.GetAllAsync()).ToList();
-        var allProducts  = (await _productRepository.GetAllAsync()).ToList();
-
-        var today        = DateTime.Today;
+        var today = DateTime.Today;
         var startOfMonth = new DateTime(today.Year, today.Month, 1);
 
-        // ── Totals ──────────────────────────────────────────────────────
-        var totalRevenueAllTime = validSales.Sum(s => s.Total);
+        // ── 1. Conteos Globales directos y rápidos ──────────────────────────
+        var totalSales = await _saleRepository.GetTotalSalesCountAsync();
+        var totalCustomers = await _customerRepository.GetTotalCustomersCountAsync(); // Asegúrate de tener este método o usa un GetAll simplificado en su rep
+        var totalProducts = await _productRepository.GetTotalProductsCountAsync();   // Asegúrate de tener este método o usa un GetAll simplificado en su rep
 
-        // ── Today ───────────────────────────────────────────────────────
-        var todaySales    = validSales.Where(s => s.SaleDate.Date == today).ToList();
-        var todayRevenue  = todaySales.Sum(s => s.Total);
+        // ── 2. Datos optimizados de ventas (Solo bajan columnas clave) ──────
+        var salesStats = await _saleRepository.GetSalesStatsOptimizedAsync();
 
-        // ── Current month ────────────────────────────────────────────────
-        var monthSales    = validSales.Where(s => s.SaleDate >= startOfMonth).ToList();
-        var monthRevenue  = monthSales.Sum(s => s.Total);
+        var totalRevenueAllTime = salesStats.Sum(s => s.Total);
 
-        // ── Recent sales (last 8) ────────────────────────────────────────
-        var recentSales = allSales
-            .OrderByDescending(s => s.SaleDate)
-            .Take(8)
-            .Select(s => new RecentSaleDto
-            {
-                SaleId       = s.SaleId,
-                CustomerName = s.Customer?.FullName ?? string.Empty,
-                SaleDate     = s.SaleDate,
-                Total        = s.Total,
-                Status       = s.Status.ToSpanish()
-            })
-            .ToList();
+        var todaySalesData = salesStats.Where(s => s.SaleDate.Date == today).ToList();
+        var todaySaleCount = todaySalesData.Count;
+        var todayRevenue = todaySalesData.Sum(s => s.Total);
 
-        // ── Top products by units sold (last 30 days) ────────────────────
-        var last30Days  = today.AddDays(-30);
-        var topProducts = validSales
-            .Where(s => s.SaleDate.Date >= last30Days)
-            .SelectMany(s => s.Details)
-            .GroupBy(detail => new { detail.ProductId, detail.Product?.Name })
-            .Select(g => new TopProductDto
-            {
-                ProductId    = g.Key.ProductId,
-                ProductName  = g.Key.Name ?? string.Empty,
-                TotalUnits   = g.Sum(d => d.Quantity),
-                TotalRevenue = g.Sum(d => d.Subtotal)
-            })
-            .OrderByDescending(p => p.TotalUnits)
-            .Take(5)
-            .ToList();
+        var monthSalesData = salesStats.Where(s => s.SaleDate >= startOfMonth).ToList();
+        var monthSaleCount = monthSalesData.Count;
+        var monthRevenue = monthSalesData.Sum(s => s.Total);
 
-        // ── Monthly summary (last 6 months) ─────────────────────────────
+        // ── 3. Recientes (La BD ya filtró y devolvió solo 8 registros) ──────
+        var recentSales = await _saleRepository.GetRecentSalesDashboardAsync(8);
+
+        // ── 4. Top productos (La BD ya procesó los 100k y devolvió solo 5) ──
+        var topProducts = await _saleRepository.GetTopProductsDashboardAsync(30, 5);
+
+        // ── 5. Resumen mensual (Últimos 6 meses) ───────────────────────────
         var monthlySummaries = Enumerable.Range(0, 6)
             .Select(offset =>
             {
                 var referenceDate = today.AddMonths(-offset);
-                var year          = referenceDate.Year;
-                var month         = referenceDate.Month;
-                var salesInMonth  = validSales.Where(s => s.SaleDate.Year == year && s.SaleDate.Month == month).ToList();
+                var year = referenceDate.Year;
+                var month = referenceDate.Month;
+                var salesInMonth = salesStats.Where(s => s.SaleDate.Year == year && s.SaleDate.Month == month).ToList();
 
                 return new MonthlySummaryDto
                 {
-                    Year       = year,
-                    Month      = month,
+                    Year = year,
+                    Month = month,
                     MonthLabel = referenceDate.ToString("MMM yyyy"),
-                    SaleCount  = salesInMonth.Count,
-                    Revenue    = salesInMonth.Sum(s => s.Total)
+                    SaleCount = salesInMonth.Count,
+                    Revenue = salesInMonth.Sum(s => s.Total)
                 };
             })
             .OrderBy(m => m.Year).ThenBy(m => m.Month)
@@ -99,17 +78,17 @@ public class DashboardService : IDashboardService
 
         return new DashboardStatsDto
         {
-            TotalSales          = allSales.Count,
-            TotalCustomers      = allCustomers.Count,
-            TotalProducts       = allProducts.Count,
+            TotalSales = totalSales,
+            TotalCustomers = totalCustomers,
+            TotalProducts = totalProducts,
             TotalRevenueAllTime = totalRevenueAllTime,
-            TodaySaleCount      = todaySales.Count,
-            TodayRevenue        = todayRevenue,
-            MonthSaleCount      = monthSales.Count,
-            MonthRevenue        = monthRevenue,
-            RecentSales         = recentSales,
-            TopProducts         = topProducts,
-            MonthlySummaries    = monthlySummaries
+            TodaySaleCount = todaySaleCount,
+            TodayRevenue = todayRevenue,
+            MonthSaleCount = monthSaleCount,
+            MonthRevenue = monthRevenue,
+            RecentSales = recentSales,
+            TopProducts = topProducts,
+            MonthlySummaries = monthlySummaries
         };
     }
 }

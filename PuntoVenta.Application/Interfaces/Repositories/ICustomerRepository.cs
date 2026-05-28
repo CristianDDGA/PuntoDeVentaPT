@@ -9,6 +9,7 @@ public interface ICustomerRepository
     Task<Customer?>             GetByIdAsync(int customerId);
     Task<Customer>              AddAsync(Customer customer);
     Task<bool>                  ActivateAsync(int customerId);
+    Task<int> GetTotalCustomersCountAsync();
     Task<bool>                  DeactivateAsync(int customerId);
 
     /// <summary>

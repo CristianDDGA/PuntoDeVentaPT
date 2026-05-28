@@ -21,9 +21,17 @@ public class SaleDetailConfiguration : IEntityTypeConfiguration<SaleDetail>
         // Subtotal es calculado en memoria, no se persiste (ya lo maneja SQL)
         saleDetailBuilder.Ignore(saleDetail => saleDetail.Subtotal);
 
+        // 🤝 Relación con Productos (Existente)
         saleDetailBuilder.HasOne(saleDetail => saleDetail.Product)
             .WithMany()
             .HasForeignKey(saleDetail => saleDetail.ProductId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // 🚀 SOLUCIÓN DEFINTIVA: Relación explícita con la cabecera de Ventas
+        // Esto le prohíbe terminantemente a EF Core buscar la columna falsa "SaleId1"
+        saleDetailBuilder.HasOne(saleDetail => saleDetail.Sale)
+            .WithMany(sale => sale.Details)
+            .HasForeignKey(saleDetail => saleDetail.SaleId)
+            .OnDelete(DeleteBehavior.Cascade); // Si se elimina la venta cabecera, se borran sus detalles en cascada
     }
 }
