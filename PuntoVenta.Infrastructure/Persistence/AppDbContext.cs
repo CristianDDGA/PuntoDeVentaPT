@@ -8,17 +8,31 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<Customer>   Customers   => Set<Customer>();
-    public DbSet<Product>    Products    => Set<Product>();
-    public DbSet<Sale>       Sales       => Set<Sale>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<SaleDetail> SaleDetails => Set<SaleDetail>();
-    public DbSet<Role>       Roles       => Set<Role>();
-    public DbSet<User>       Users       => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
-    public DbSet<ErrorLog>   ErrorLogs   => Set<ErrorLog>();
+    public DbSet<ErrorLog> ErrorLogs => Set<ErrorLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // 🛠️ TRUCO MAESTRO: Mapear AUTOMÁTICAMENTE todos los bool del sistema a NUMBER(1) para Oracle
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var properties = entityType.GetProperties();
+            foreach (var property in properties)
+            {
+                if (property.ClrType == typeof(bool))
+                {
+                    property.SetColumnType("NUMBER(1)");
+                }
+            }
+        }
+
+        // Aplicar configuraciones personalizadas de las tablas
         modelBuilder.ApplyConfiguration(new CustomerConfiguration());
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new SaleConfiguration());

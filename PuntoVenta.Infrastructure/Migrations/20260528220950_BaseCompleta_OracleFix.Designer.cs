@@ -12,8 +12,8 @@ using PuntoVenta.Infrastructure.Persistence;
 namespace PuntoVenta.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260527182247_BaseCompleta")]
-    partial class BaseCompleta
+    [Migration("20260528220950_BaseCompleta_OracleFix")]
+    partial class BaseCompleta_OracleFix
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -56,7 +56,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .HasColumnType("NVARCHAR2(100)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("BOOLEAN");
+                        .HasColumnType("NUMBER(1)");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -146,7 +146,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                     OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"));
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("BOOLEAN");
+                        .HasColumnType("NUMBER(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -199,7 +199,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                     OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoleId"));
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("BOOLEAN");
+                        .HasColumnType("NUMBER(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -338,11 +338,11 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .HasColumnType("NVARCHAR2(150)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("BOOLEAN");
+                        .HasColumnType("NUMBER(1)");
 
                     b.Property<bool>("IsLocked")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("BOOLEAN")
+                        .HasColumnType("NUMBER(1)")
                         .HasDefaultValue(false);
 
                     b.Property<string>("PasswordHash")
@@ -387,13 +387,15 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("PuntoVenta.Domain.Entities.Sale", null)
+                    b.HasOne("PuntoVenta.Domain.Entities.Sale", "Sale")
                         .WithMany("Details")
                         .HasForeignKey("SaleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Product");
+
+                    b.Navigation("Sale");
                 });
 
             modelBuilder.Entity("PuntoVenta.Domain.Entities.StockMovement", b =>

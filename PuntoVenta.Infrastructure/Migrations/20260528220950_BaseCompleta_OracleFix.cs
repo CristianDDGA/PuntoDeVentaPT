@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PuntoVenta.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class BaseCompleta : Migration
+    public partial class BaseCompleta_OracleFix : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -26,7 +26,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                     Address = table.Column<string>(type: "NVARCHAR2(200)", maxLength: 200, nullable: true),
                     City = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: true),
                     Email = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: true),
-                    IsActive = table.Column<bool>(type: "BOOLEAN", nullable: false)
+                    IsActive = table.Column<bool>(type: "NUMBER(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -59,7 +59,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                     Name = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: false),
                     Price = table.Column<decimal>(type: "NUMBER(10,2)", nullable: false),
                     Stock = table.Column<int>(type: "NUMBER(10)", nullable: false),
-                    IsActive = table.Column<bool>(type: "BOOLEAN", nullable: false)
+                    IsActive = table.Column<bool>(type: "NUMBER(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -73,7 +73,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                     RoleId = table.Column<int>(type: "NUMBER(10)", nullable: false)
                         .Annotation("Oracle:Identity", "START WITH 1 INCREMENT BY 1"),
                     Name = table.Column<string>(type: "NVARCHAR2(100)", maxLength: 100, nullable: false),
-                    IsActive = table.Column<bool>(type: "BOOLEAN", nullable: false)
+                    IsActive = table.Column<bool>(type: "NUMBER(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -115,10 +115,10 @@ namespace PuntoVenta.Infrastructure.Migrations
                     PasswordHash = table.Column<string>(type: "NVARCHAR2(500)", maxLength: 500, nullable: false),
                     FullName = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: false),
                     Email = table.Column<string>(type: "NVARCHAR2(150)", maxLength: 150, nullable: true),
-                    IsActive = table.Column<bool>(type: "BOOLEAN", nullable: false),
+                    IsActive = table.Column<bool>(type: "NUMBER(1)", nullable: false),
                     RoleId = table.Column<int>(type: "NUMBER(10)", nullable: false),
                     FailedLoginAttempts = table.Column<int>(type: "NUMBER(10)", nullable: false, defaultValue: 0),
-                    IsLocked = table.Column<bool>(type: "BOOLEAN", nullable: false, defaultValue: false)
+                    IsLocked = table.Column<bool>(type: "NUMBER(1)", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
