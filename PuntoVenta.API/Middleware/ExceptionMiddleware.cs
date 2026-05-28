@@ -116,17 +116,19 @@ public class ExceptionMiddleware
     }
 
     private async Task WriteDetailedErrorResponseAsync(
-        HttpContext httpContext,
-        HttpStatusCode statusCode,
-        Exception exception)
+    HttpContext httpContext,
+    HttpStatusCode statusCode,
+    Exception exception)
     {
         httpContext.Response.ContentType = "application/json";
-        httpContext.Response.StatusCode  = (int)statusCode;
+        httpContext.Response.StatusCode = (int)statusCode;
 
         var errorResponse = new
         {
             StatusCode = (int)statusCode,
             Message = exception.Message,
+            // 👇 ESTA LÍNEA TE REVELARÁ EL ERROR REAL DE ORACLE (ORA-XXXXX)
+            InnerError = exception.InnerException?.Message,
             Exception = exception.GetType().Name,
             StackTrace = exception.StackTrace
         };

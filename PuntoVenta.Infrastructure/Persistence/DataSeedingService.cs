@@ -25,7 +25,7 @@ public class DataSeedingService
         // 5 minutos de tiempo de espera (timeout) para que Oracle procese todo con calma
         _context.Database.SetCommandTimeout(300);
 
-        // Forzamos la cultura en inglés para los nombres de productos tecnológicos (ej. "Laptop Pro", "Gaming Mouse")
+        // Forzamos la cultura en inglés para los nombres de productos tecnológicos
         var fakerTech = new Faker("en");
         var fakerEs = new Faker("es");
 
@@ -43,7 +43,6 @@ public class DataSeedingService
         var clienteDirecciones = new string[100000];
         var clienteCiudades = new string[100000];
         var clienteEmails = new string[100000];
-        // En Oracle mapeamos los booleanos como NUMBER(1) -> 1 para True
         var clienteEstados = Enumerable.Repeat((byte)1, 100000).ToArray();
 
         for (int i = 0; i < 100000; i++)
@@ -66,7 +65,6 @@ public class DataSeedingService
         var productoStocks = new int[100000];
         var productoEstados = Enumerable.Repeat((byte)1, 100000).ToArray();
 
-        // Lista de prefijos y sufijos para darle un toque ultra tecnológico y realista
         var marcasTech = new[] { "Asus ROG", "MSI Pro", "Corsair", "Logitech G", "Razer", "Samsung Evo", "Kingston Fury", "Intel Core", "AMD Ryzen", "Sony", "Apple", "Dell UltraSharp", "Gigabyte" };
         var categoriasTech = new[] { "Gaming Laptop", "Mechanical Keyboard", "Wireless Mouse", "NVMe M.2 SSD", "Graphics Card RTX", "DDR5 RAM 16GB", "Curved Monitor", "Processor", "Liquid Cooling", "Headset 7.1" };
 
@@ -74,14 +72,11 @@ public class DataSeedingService
         {
             productoIds[i] = ++productIdSeed;
 
-            // Combina una marca real, una categoría y el generador de productos electrónicos de Bogus
             var marca = fakerTech.PickRandom(marcasTech);
             var categoria = fakerTech.PickRandom(categoriasTech);
-            var modelo = fakerTech.Commerce.Product(); // Ej: "Computer", "Chips", etc.
+            var modelo = fakerTech.Commerce.Product();
 
             productoNombres[i] = $"{marca} {categoria} ({modelo})";
-
-            // Los precios de tecnología son más elevados (ej: entre $15.00 por un cable hasta $1500.00 por una laptop)
             productoPrecios[i] = Math.Round(fakerTech.Random.Decimal(15.00m, 1499.00m), 2);
             productoStocks[i] = fakerTech.Random.Number(5, 300);
         }
@@ -110,17 +105,17 @@ public class DataSeedingService
             var actualSaleId = ++saleIdSeed;
             ventaIds[i] = actualSaleId;
             ventaClienteIds[i] = clienteIds[fakerEs.Random.Number(0, 99999)];
-            ventaFechas[i] = fakerEs.Date.Past(1); // Ventas del último año
-            ventaTiposPago[i] = 1; // 1: Solo efectivo (Cumpliendo el Requisito 30 del PDF)
-            ventaEstados[i] = (byte)SaleStatus.Confirmed; // 1: Confirmed (Estado base en semilla para estrés)
+            ventaFechas[i] = fakerEs.Date.Past(1);
+            ventaTiposPago[i] = 1; // 1: Solo efectivo (Requisito del sistema)
+            ventaEstados[i] = (byte)SaleStatus.Confirmed;
 
-            int itemsEnVenta = fakerEs.Random.Number(1, 2); // 1 o 2 artículos tecnológicos por factura
+            int itemsEnVenta = fakerEs.Random.Number(1, 2);
             decimal subtotalVenta = 0;
 
             for (int j = 0; j < itemsEnVenta; j++)
             {
                 int randomProdIndex = fakerEs.Random.Number(0, 99999);
-                int cantidad = fakerEs.Random.Number(1, 2); // Compras lógicas de tecnología (1 o 2 unidades)
+                int cantidad = fakerEs.Random.Number(1, 2);
                 decimal precio = productoPrecios[randomProdIndex];
 
                 subtotalVenta += (precio * cantidad);
@@ -132,7 +127,7 @@ public class DataSeedingService
                 detPreciosUnitarios.Add(precio);
             }
 
-            decimal IVA = Math.Round(subtotalVenta * 0.15m, 2); // Simulación de IVA 15% (Ecuador)
+            decimal IVA = Math.Round(subtotalVenta * 0.15m, 2); // IVA 15% Ecuador
             ventaSubtotales[i] = Math.Round(subtotalVenta, 2);
             ventaImpuestos[i] = IVA;
             ventaTotales[i] = Math.Round(subtotalVenta + IVA, 2);
@@ -150,7 +145,7 @@ public class DataSeedingService
             {
                 try
                 {
-                    // 🧹 🚀 LIMPIEZA AUTOMÁTICA PREVIA (Garantiza entorno relacional limpio)
+                    // 🧹 🚀 LIMPIEZA AUTOMÁTICA PREVIA
                     using (var limpiarCommand = connection.CreateCommand())
                     {
                         limpiarCommand.Transaction = transaction;
@@ -229,6 +224,31 @@ public class DataSeedingService
                         await command.ExecuteNonQueryAsync();
                     }
 
+                    // =========================================================================
+                    // 🔥 SINCRONIZACIÓN AUTOMÁTICA DE SECUENCIAS (EVITA EL ERROR ORA-00001)
+                    // =========================================================================
+                    using (var seqCommand = connection.CreateCommand())
+                    {
+                        seqCommand.Transaction = transaction;
+
+                        // Agregamos un colchón de 500 números por encima del máximo insertado
+                        int nextCustomerSeq = customerIdSeed + 500;
+                        int nextProductSeq = productIdSeed + 500;
+                        int nextSaleSeq = saleIdSeed + 500;
+                        int nextDetailSeq = saleDetailIdSeed + 500;
+
+                        seqCommand.CommandText = $@"
+                            BEGIN
+                                EXECUTE IMMEDIATE 'ALTER TABLE ""Customers"" MODIFY (""CustomerId"" GENERATED AS IDENTITY (START WITH {nextCustomerSeq}))';
+                                EXECUTE IMMEDIATE 'ALTER TABLE ""Products"" MODIFY (""ProductId"" GENERATED AS IDENTITY (START WITH {nextProductSeq}))';
+                                EXECUTE IMMEDIATE 'ALTER TABLE ""Sales"" MODIFY (""SaleId"" GENERATED AS IDENTITY (START WITH {nextSaleSeq}))';
+                                EXECUTE IMMEDIATE 'ALTER TABLE ""SaleDetails"" MODIFY (""SaleDetailId"" GENERATED AS IDENTITY (START WITH {nextDetailSeq}))';
+                            END;";
+
+                        await seqCommand.ExecuteNonQueryAsync();
+                    }
+
+                    // Guardamos la transacción completa con las secuencias recalibradas
                     await transaction.CommitAsync();
                 }
                 catch (Exception)
