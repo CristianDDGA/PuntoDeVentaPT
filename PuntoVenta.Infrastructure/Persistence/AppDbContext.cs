@@ -19,20 +19,9 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // 🛠️ TRUCO MAESTRO: Mapear AUTOMÁTICAMENTE todos los bool del sistema a NUMBER(1) para Oracle
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            var properties = entityType.GetProperties();
-            foreach (var property in properties)
-            {
-                if (property.ClrType == typeof(bool))
-                {
-                    property.SetColumnType("NUMBER(1)");
-                }
-            }
-        }
+        // 🚀 Quitamos el bucle de NUMBER(1) ya que Oracle 23c Free soporta BOOLEAN nativo de fábrica.
 
-        // Aplicar configuraciones personalizadas de las tablas
+        // Aplicar configuraciones personalizadas de las tablas por Fluent API
         modelBuilder.ApplyConfiguration(new CustomerConfiguration());
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new SaleConfiguration());

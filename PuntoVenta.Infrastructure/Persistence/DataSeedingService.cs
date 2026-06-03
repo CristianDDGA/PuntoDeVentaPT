@@ -43,7 +43,9 @@ public class DataSeedingService
         var clienteDirecciones = new string[100000];
         var clienteCiudades = new string[100000];
         var clienteEmails = new string[100000];
-        var clienteEstados = Enumerable.Repeat((byte)1, 100000).ToArray();
+
+        // 🛠️ CAMBIO ORACLE 23c FREE: Ahora usamos booleanos nativos (true) en lugar de (byte)1
+        var clienteEstados = Enumerable.Repeat(true, 100000).ToArray();
 
         for (int i = 0; i < 100000; i++)
         {
@@ -63,17 +65,19 @@ public class DataSeedingService
         var productoNombres = new string[100000];
         var productoPrecios = new decimal[100000];
         var productoStocks = new int[100000];
-        var productoEstados = Enumerable.Repeat((byte)1, 100000).ToArray();
+
+        // 🛠️ CAMBIO ORACLE 23c FREE: Booleanos nativos para productos activos
+        var productoEstados = Enumerable.Repeat(true, 100000).ToArray();
 
         var marcasTech = new[] { "Asus ROG", "MSI Pro", "Corsair", "Logitech G", "Razer", "Samsung Evo", "Kingston Fury", "Intel Core", "AMD Ryzen", "Sony", "Apple", "Dell UltraSharp", "Gigabyte" };
-        var categoriasTech = new[] { "Gaming Laptop", "Mechanical Keyboard", "Wireless Mouse", "NVMe M.2 SSD", "Graphics Card RTX", "DDR5 RAM 16GB", "Curved Monitor", "Processor", "Liquid Cooling", "Headset 7.1" };
+        var categoriesTech = new[] { "Gaming Laptop", "Mechanical Keyboard", "Wireless Mouse", "NVMe M.2 SSD", "Graphics Card RTX", "DDR5 RAM 16GB", "Curved Monitor", "Processor", "Liquid Cooling", "Headset 7.1" };
 
         for (int i = 0; i < 100000; i++)
         {
             productoIds[i] = ++productIdSeed;
 
             var marca = fakerTech.PickRandom(marcasTech);
-            var categoria = fakerTech.PickRandom(categoriasTech);
+            var categoria = fakerTech.PickRandom(categoriesTech);
             var modelo = fakerTech.Commerce.Product();
 
             productoNombres[i] = $"{marca} {categoria} ({modelo})";
@@ -175,7 +179,10 @@ public class DataSeedingService
                         command.Parameters.Add(new OracleParameter("Address", OracleDbType.Varchar2) { Value = clienteDirecciones });
                         command.Parameters.Add(new OracleParameter("City", OracleDbType.Varchar2) { Value = clienteCiudades });
                         command.Parameters.Add(new OracleParameter("Email", OracleDbType.Varchar2) { Value = clienteEmails });
-                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Byte) { Value = clienteEstados });
+
+                        // 🛠️ CAMBIO ORACLE 23c FREE: Enviar como OracleDbType.Boolean nativo
+                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Boolean) { Value = clienteEstados });
+
                         await command.ExecuteNonQueryAsync();
                     }
 
@@ -189,7 +196,10 @@ public class DataSeedingService
                         command.Parameters.Add(new OracleParameter("Name", OracleDbType.Varchar2) { Value = productoNombres });
                         command.Parameters.Add(new OracleParameter("Price", OracleDbType.Decimal) { Value = productoPrecios });
                         command.Parameters.Add(new OracleParameter("Stock", OracleDbType.Int32) { Value = productoStocks });
-                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Byte) { Value = productoEstados });
+
+                        // 🛠️ CAMBIO ORACLE 23c FREE: Enviar como OracleDbType.Boolean nativo
+                        command.Parameters.Add(new OracleParameter("IsActive", OracleDbType.Boolean) { Value = productoEstados });
+
                         await command.ExecuteNonQueryAsync();
                     }
 

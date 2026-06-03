@@ -12,8 +12,8 @@ using PuntoVenta.Infrastructure.Persistence;
 namespace PuntoVenta.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260528220950_BaseCompleta_OracleFix")]
-    partial class BaseCompleta_OracleFix
+    [Migration("20260603130126_BaseCompleta_OracleFree23c")]
+    partial class BaseCompleta_OracleFree23c
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -56,7 +56,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .HasColumnType("NVARCHAR2(100)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("NUMBER(1)");
+                        .HasColumnType("BOOLEAN");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -146,7 +146,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                     OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProductId"));
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("NUMBER(1)");
+                        .HasColumnType("BOOLEAN");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -199,7 +199,7 @@ namespace PuntoVenta.Infrastructure.Migrations
                     OraclePropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoleId"));
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("NUMBER(1)");
+                        .HasColumnType("BOOLEAN");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -338,11 +338,11 @@ namespace PuntoVenta.Infrastructure.Migrations
                         .HasColumnType("NVARCHAR2(150)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("NUMBER(1)");
+                        .HasColumnType("BOOLEAN");
 
                     b.Property<bool>("IsLocked")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("NUMBER(1)")
+                        .HasColumnType("BOOLEAN")
                         .HasDefaultValue(false);
 
                     b.Property<string>("PasswordHash")
