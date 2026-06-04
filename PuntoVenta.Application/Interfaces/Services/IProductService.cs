@@ -9,8 +9,10 @@ public interface IProductService
     Task<IEnumerable<ProductDto>> SearchByNameAsync(string name);
     Task<ProductDto?>             GetByIdAsync(int productId);
     Task<ProductDto>              CreateAsync(CreateProductDto dto);
+    Task<ProductDto>              UpdateAsync(int productId, UpdateProductDto dto);
     Task<bool>                   ActivateAsync(int productId);
     Task<bool>                   DeactivateAsync(int productId);
+    Task<DeleteResultDto>        DeleteAsync(int productId);
 
     /// <summary>
     /// Returns a paginated subset of products filtered by optional productId (exact) or name (LIKE).

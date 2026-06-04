@@ -16,6 +16,16 @@
             </div>
         </div>
 
+        <!-- Clock (Moved to top) -->
+        <div style="margin: 0 var(--spacing-lg) var(--spacing-md); text-align:center; background:rgba(255,255,255,0.08); border-radius:var(--border-radius-md); padding:var(--spacing-sm) var(--spacing-md);">
+            <div style="font-size:var(--font-size-xs); color:rgba(255,255,255,0.5); letter-spacing:0.05em; text-transform:uppercase; margin-bottom:2px;">
+                <i class="ph ph-clock"></i> Hora del sistema
+            </div>
+            <div style="font-variant-numeric:tabular-nums; color:rgba(255,255,255,0.95); font-size:var(--font-size-base); font-weight:bold; letter-spacing:0.03em;">
+                @_currentDateTime
+            </div>
+        </div>
+
         <!-- User Box -->
         <AuthorizeView>
             <Authorized Context="authState">
@@ -79,6 +89,12 @@
                         </span>
                         <span class="menu-label">Usuarios</span>
                     </NavLink>
+                    <NavLink class="menu-item" href="/error-logs">
+                        <span class="menu-icon" aria-hidden="true">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </span>
+                        <span class="menu-label">Logs de Errores</span>
+                    </NavLink>
                 </Authorized>
             </AuthorizeView>
         </nav>
@@ -105,9 +121,6 @@
                 </span>
                 <span class="footer-label">Salir</span>
             </button>
-            <div style="margin-top:var(--spacing-md); text-align:center; font-variant-numeric:tabular-nums; color:var(--color-text-muted); font-size:var(--font-size-xs);">
-                @_currentDateTime
-            </div>
         </div>
     </aside>
 

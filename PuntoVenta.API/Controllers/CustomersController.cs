@@ -89,11 +89,14 @@ public class CustomersController : ControllerBase
         return success ? NoContent() : NotFound($"Customer with id {customerId} not found.");
     }
 
-    [HttpPut("{customerId:int}/deactivate")]
+    [HttpDelete("{customerId:int}")]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> Deactivate(int customerId)
+    public async Task<IActionResult> Delete(int customerId)
     {
-        var success = await _customerService.DeactivateAsync(customerId);
-        return success ? NoContent() : NotFound($"Customer with id {customerId} not found.");
+        var result = await _customerService.DeleteAsync(customerId);
+        if (!result.Success)
+            return NotFound(result.Message);
+
+        return Ok(result);
     }
 }

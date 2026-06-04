@@ -81,6 +81,30 @@ public class ProductsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { productId = savedProduct.ProductId }, savedProduct);
     }
 
+    [HttpPut("{productId:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
+    public async Task<IActionResult> Update(int productId, [FromBody] UpdateProductDto updateProductDto)
+    {
+        // FluentValidation via inject or manual, since we added UpdateProductValidator we could inject it, but for brevity we can validate directly or use the CreateProductValidator if same.
+        // Or let ASP.NET Core handle it if FluentValidation.AspNetCore is configured to auto-validate.
+        // Assuming we need to validate manually:
+        var validator = new PuntoVenta.Application.Validators.UpdateProductValidator();
+        var validationResult = await validator.ValidateAsync(updateProductDto);
+
+        if (!validationResult.IsValid)
+            return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+
+        try
+        {
+            var updatedProduct = await _productService.UpdateAsync(productId, updateProductDto);
+            return Ok(updatedProduct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
     [HttpPut("{productId:int}/activate")]
     [Authorize(Roles = AppRoles.Admin)]
     public async Task<IActionResult> Activate(int productId)
@@ -89,11 +113,14 @@ public class ProductsController : ControllerBase
         return success ? NoContent() : NotFound($"Product with id {productId} not found.");
     }
 
-    [HttpPut("{productId:int}/deactivate")]
+    [HttpDelete("{productId:int}")]
     [Authorize(Roles = AppRoles.Admin)]
-    public async Task<IActionResult> Deactivate(int productId)
+    public async Task<IActionResult> Delete(int productId)
     {
-        var success = await _productService.DeactivateAsync(productId);
-        return success ? NoContent() : NotFound($"Product with id {productId} not found.");
+        var result = await _productService.DeleteAsync(productId);
+        if (!result.Success)
+            return NotFound(result.Message);
+
+        return Ok(result);
     }
 }

@@ -11,6 +11,8 @@ public interface ICustomerRepository
     Task<bool>                  ActivateAsync(int customerId);
     Task<int> GetTotalCustomersCountAsync();
     Task<bool>                  DeactivateAsync(int customerId);
+    Task<bool>                  HasSalesAsync(int customerId);
+    Task<bool>                  PhysicalDeleteAsync(int customerId);
 
     /// <summary>
     /// Returns a paginated and optionally filtered list of customers.

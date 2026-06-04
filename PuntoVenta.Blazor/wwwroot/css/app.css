@@ -688,8 +688,12 @@ html, body {
 }
 
 .data-table tbody tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--color-border);
     transition: background var(--transition-fast);
+}
+
+.data-table tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.015);
 }
 
 .data-table tbody tr:hover {
@@ -754,7 +758,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     padding: var(--spacing-sm) 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .totals-row:last-child {

@@ -50,7 +50,7 @@ public class SaleService : ISaleService
         return lastSaleId + 1;
     }
 
-    public async Task<SaleDto> CreateAsync(CreateSaleDto createSaleDto)
+    public async Task<SaleDto> CreateAsync(CreateSaleDto createSaleDto, int? userId = null)
     {
         if (!Enum.TryParse<PaymentType>(createSaleDto.PaymentType, out var paymentType))
             throw new ArgumentException($"Invalid payment type: {createSaleDto.PaymentType}");
@@ -85,22 +85,126 @@ public class SaleService : ISaleService
 
             var newSaleDetail = SaleDetail.Create(
                 existingProduct.ProductId,
+                existingProduct.Name,
                 saleDetailDto.Quantity,
                 existingProduct.Price);
 
             saleDetails.Add(newSaleDetail);
         }
 
-        var newSale   = Sale.Create(createSaleDto.CustomerId, paymentType, saleDetails);
-        var savedSale = await _saleRepository.AddAsync(newSale);
+        await _unitOfWork.BeginTransactionAsync();
 
-        // Auto confirm sale to reduce stock as requested for POS workflow
-        await ConfirmSaleAsync(savedSale.SaleId);
-        
-        // Refresh the saved sale from DB to reflect the new Status and Stock modifications
-        savedSale = await _saleRepository.GetByIdAsync(savedSale.SaleId) ?? savedSale;
+        try
+        {
+            var newSale   = Sale.Create(createSaleDto.CustomerId, paymentType, saleDetails, userId);
+            var savedSale = await _saleRepository.AddAsync(newSale);
 
-        return MapSaleToDto(savedSale);
+            foreach (var detail in savedSale.Details)
+            {
+                var existingProduct = await _productRepository.GetByIdAsync(detail.ProductId)
+                    ?? throw new KeyNotFoundException($"Producto {detail.ProductId} no encontrado.");
+
+                var stockReduced = await _productRepository.ReduceStockAsync(detail.ProductId, detail.Quantity);
+                if (!stockReduced)
+                    throw new InvalidOperationException($"Stock insuficiente para el producto: {existingProduct.Name}.");
+
+                await _stockMovementRepository.AddAsync(StockMovement.Create(
+                    detail.ProductId,
+                    detail.Quantity,
+                    existingProduct.Stock,
+                    existingProduct.Stock - detail.Quantity,
+                    StockMovementType.Out,
+                    $"Venta #{savedSale.SaleId} cobrada y confirmada",
+                    null));
+            }
+
+            savedSale.ConfirmSale();
+            await _saleRepository.UpdateAsync(savedSale);
+
+            await _unitOfWork.CommitTransactionAsync();
+
+            // Refresh the saved sale from DB to reflect the new Status and Stock modifications
+            var refreshedSale = await _saleRepository.GetByIdAsync(savedSale.SaleId) ?? savedSale;
+
+            return MapSaleToDto(refreshedSale);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackTransactionAsync();
+            throw;
+        }
+    }
+
+    public async Task<SaleDto> SaveDraftAsync(int? saleId, CreateSaleDto createSaleDto, int? userId = null)
+    {
+        if (!Enum.TryParse<PaymentType>(createSaleDto.PaymentType, out var paymentType))
+            throw new ArgumentException($"Invalid payment type: {createSaleDto.PaymentType}");
+
+        var duplicateProductIds = createSaleDto.Details
+            .GroupBy(detail => detail.ProductId)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+
+        if (duplicateProductIds.Count > 0)
+            throw new InvalidOperationException("No se permite repetir el mismo producto en el detalle de la venta.");
+
+        var customer = await _customerRepository.GetByIdAsync(createSaleDto.CustomerId)
+            ?? throw new KeyNotFoundException($"Cliente {createSaleDto.CustomerId} no encontrado.");
+
+        if (!customer.IsActive)
+            throw new InvalidOperationException("El cliente seleccionado está inactivo.");
+
+        var saleDetails = new List<SaleDetail>();
+
+        foreach (var saleDetailDto in createSaleDto.Details)
+        {
+            var existingProduct = await _productRepository.GetByIdAsync(saleDetailDto.ProductId)
+                ?? throw new KeyNotFoundException($"Producto {saleDetailDto.ProductId} no encontrado.");
+
+            if (!existingProduct.IsActive)
+                throw new InvalidOperationException($"El producto {existingProduct.Name} está inactivo.");
+
+            var newSaleDetail = SaleDetail.Create(
+                existingProduct.ProductId,
+                existingProduct.Name,
+                saleDetailDto.Quantity,
+                existingProduct.Price);
+
+            saleDetails.Add(newSaleDetail);
+        }
+
+        Sale sale;
+
+        if (saleId.HasValue && saleId > 0)
+        {
+            sale = await _saleRepository.GetByIdTrackedAsync(saleId.Value)
+                   ?? throw new KeyNotFoundException($"Borrador {saleId.Value} no encontrado.");
+
+            sale.UpdateDraft(createSaleDto.CustomerId, paymentType, saleDetails, userId);
+            await _saleRepository.UpdateAsync(sale);
+        }
+        else
+        {
+            sale = Sale.Create(createSaleDto.CustomerId, paymentType, saleDetails, userId);
+            await _saleRepository.AddAsync(sale);
+        }
+
+        // Return DTO mapped correctly
+        var refreshedSale = await _saleRepository.GetByIdAsync(sale.SaleId) ?? sale;
+        return MapSaleToDto(refreshedSale);
+    }
+
+    public async Task<bool> DeleteDraftAsync(int saleId)
+    {
+        var sale = await _saleRepository.GetByIdTrackedAsync(saleId);
+        if (sale == null) return false;
+
+        if (sale.Status != SaleStatus.Draft)
+            throw new InvalidOperationException("Solo se pueden eliminar borradores de esta forma.");
+
+        await _saleRepository.DeleteAsync(sale);
+        return true;
     }
 
     public async Task<PagedResult<SaleDto>> SearchPagedAsync(
@@ -108,9 +212,10 @@ public class SaleService : ISaleService
         string? customerName,
         int     page,
         int     pageSize,
-        bool    excludeVoided = false)
+        bool    excludeVoided = false,
+        int?    sellerId = null)
     {
-        var (items, totalCount) = await _saleRepository.SearchPagedAsync(saleId, customerName, page, pageSize, excludeVoided);
+        var (items, totalCount) = await _saleRepository.SearchPagedAsync(saleId, customerName, page, pageSize, excludeVoided, sellerId);
         
         var dtos = items.Select(MapSaleToDto).ToList();
 
@@ -154,6 +259,8 @@ public class SaleService : ISaleService
                 await _stockMovementRepository.AddAsync(StockMovement.Create(
                     detail.ProductId,
                     detail.Quantity,
+                    existingProduct.Stock,
+                    existingProduct.Stock - detail.Quantity,
                     StockMovementType.Out,
                     $"Venta #{sale.SaleId} confirmada",
                     userId));
@@ -197,8 +304,10 @@ public class SaleService : ISaleService
                         await _stockMovementRepository.AddAsync(StockMovement.Create(
                             detail.ProductId,
                             detail.Quantity,
+                            product.Stock - detail.Quantity,
+                            product.Stock,
                             StockMovementType.In,
-                            $"Venta #{sale.SaleId} cancelada",
+                            $"Venta #{sale.SaleId} cancelada. Reversión de stock",
                             userId));
                     }
                 }
@@ -238,7 +347,7 @@ public class SaleService : ISaleService
             Details          = sale.Details.Select(detail => new SaleDetailDto
             {
                 ProductId   = detail.ProductId,
-                ProductName = detail.Product?.Name ?? string.Empty,
+                ProductName = !string.IsNullOrWhiteSpace(detail.ProductName) ? detail.ProductName : (detail.Product?.Name ?? string.Empty),
                 Quantity    = detail.Quantity,
                 UnitPrice   = detail.UnitPrice,
                 Subtotal    = detail.Subtotal

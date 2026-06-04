@@ -45,6 +45,21 @@ public class ProductService : IProductService
         return savedProduct.Adapt<ProductDto>();
     }
 
+    public async Task<ProductDto> UpdateAsync(int productId, UpdateProductDto updateProductDto)
+    {
+        var existingProduct = await _productRepository.GetByIdTrackedAsync(productId);
+        if (existingProduct == null)
+            throw new KeyNotFoundException($"Producto {productId} no encontrado.");
+
+        existingProduct.Update(
+            updateProductDto.Name,
+            updateProductDto.Price,
+            updateProductDto.Stock);
+
+        await _productRepository.UpdateAsync(existingProduct);
+        return existingProduct.Adapt<ProductDto>();
+    }
+
     public async Task<bool> ActivateAsync(int productId)
         => await _productRepository.ActivateAsync(productId);
 
@@ -63,4 +78,39 @@ public class ProductService : IProductService
         var productDtos         = items.Adapt<IEnumerable<ProductDto>>();
         return PagedResult<ProductDto>.Create(productDtos, totalCount, page, pageSize);
     }
-}
+
+    public async Task<DeleteResultDto> DeleteAsync(int productId)
+    {
+        var existingProduct = await _productRepository.GetByIdAsync(productId);
+        if (existingProduct == null)
+        {
+            return new DeleteResultDto
+            {
+                Success = false,
+                Message = "Producto no encontrado."
+            };
+        }
+
+        var hasSales = await _productRepository.HasSalesAsync(productId);
+        if (hasSales)
+        {
+            var deactivated = await _productRepository.DeactivateAsync(productId);
+            return new DeleteResultDto
+            {
+                Success = deactivated,
+                IsLogicalDelete = true,
+                Message = $"El producto '{existingProduct.Name}' tiene historial de ventas asociado. Se ha marcado como inactivo (eliminación lógica)."
+            };
+        }
+        else
+        {
+            var deleted = await _productRepository.PhysicalDeleteAsync(productId);
+            return new DeleteResultDto
+            {
+                Success = deleted,
+                IsLogicalDelete = false,
+                Message = $"El producto '{existingProduct.Name}' fue eliminado físicamente con éxito del sistema."
+            };
+        }
+    }
+}

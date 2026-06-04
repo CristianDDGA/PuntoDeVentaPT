@@ -48,11 +48,16 @@ public class SaleRepository : ISaleRepository
 
     public async Task UpdateAsync(Sale sale)
     {
-        // If entity is untracked, we would need to attach it, but we assume it's tracked by GetByIdTrackedAsync
         if (_appDbContext.Entry(sale).State == EntityState.Detached)
         {
             _appDbContext.Sales.Update(sale);
         }
+        await _appDbContext.SaveChangesAsync();
+    }
+
+    public async Task DeleteAsync(Sale sale)
+    {
+        _appDbContext.Sales.Remove(sale);
         await _appDbContext.SaveChangesAsync();
     }
 
@@ -68,7 +73,8 @@ public class SaleRepository : ISaleRepository
         string? customerName,
         int     page,
         int     pageSize,
-        bool    excludeVoided = false)
+        bool    excludeVoided = false,
+        int?    sellerId = null)
     {
         var query = _appDbContext.Sales
             .AsNoTracking()
@@ -77,15 +83,28 @@ public class SaleRepository : ISaleRepository
                 .ThenInclude(saleDetail => saleDetail.Product)
             .AsQueryable();
 
+        // 1. Exclude drafts from historical search
+        query = query.Where(sale => sale.Status != Domain.Enums.SaleStatus.Draft);
+
+        if (sellerId.HasValue)
+        {
+            query = query.Where(sale => sale.UserId == sellerId.Value);
+        }
+
         if (saleId.HasValue)
         {
             query = query.Where(sale => sale.SaleId == saleId.Value);
         }
         else if (!string.IsNullOrWhiteSpace(customerName))
         {
-            query = query.Where(sale =>
-                sale.Customer.FirstName.Contains(customerName) ||
-                sale.Customer.LastName.Contains(customerName));
+            var terms = customerName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var term in terms)
+            {
+                var lowerTerm = term.ToLower();
+                query = query.Where(sale =>
+                    sale.Customer.FirstName.ToLower().Contains(lowerTerm) ||
+                    sale.Customer.LastName.ToLower().Contains(lowerTerm));
+            }
         }
 
         if (excludeVoided)

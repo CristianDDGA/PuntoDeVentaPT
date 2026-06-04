@@ -74,6 +74,17 @@ public class ProductApiService
         catch { return null; }
     }
 
+    public async Task<ProductModel?> UpdateAsync(int productId, CreateProductModel updateProductModel)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/Products/{productId}", updateProductModel);
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<ProductModel>();
+        }
+        catch { return null; }
+    }
+
     public async Task<bool> ActivateAsync(int productId)
     {
         try
@@ -84,14 +95,23 @@ public class ProductApiService
         catch { return false; }
     }
 
-    public async Task<bool> DeactivateAsync(int productId)
+    public async Task<DeleteResultModel?> DeleteAsync(int productId)
     {
         try
         {
-            var response = await _httpClient.PutAsync($"api/Products/{productId}/deactivate", null);
-            return response.IsSuccessStatusCode;
+            var response = await _httpClient.DeleteAsync($"api/Products/{productId}");
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<DeleteResultModel>();
+            }
+
+            var errMessage = await response.Content.ReadAsStringAsync();
+            return new DeleteResultModel { Success = false, Message = errMessage };
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            return new DeleteResultModel { Success = false, Message = ex.Message };
+        }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

@@ -192,7 +192,8 @@
                                 </td>
                                 <td class="td-numeric">$@saleDetailModel.Subtotal.ToString("F2")</td>
                                 <td class="align-center">
-                                    <button class="btn btn--danger btn--icon"
+                                    <button class="btn btn--ghost btn--icon"
+                                            style="color:var(--color-danger);"
                                             title="Eliminar fila"
                                             @onclick="() => ConfirmRemoveDetail(saleDetailModel)">
                                         <i class="ph ph-trash"></i>
@@ -208,10 +209,8 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:var(--spacing-lg); flex-wrap:wrap; gap:var(--spacing-md);">
                 <div class="payment-method-panel" style="min-width:200px;">
                     <label class="field-label" style="margin-bottom:4px; display:block; font-weight:var(--font-weight-semibold); color:var(--color-text-secondary);">Método de Pago</label>
-                    <select class="field-input" @bind="_selectedPaymentType" style="width:100%; cursor:pointer;">
+                    <select class="field-input" @bind="_selectedPaymentType" style="width:100%; cursor:not-allowed;" disabled>
                         <option value="Cash">Efectivo</option>
-                        <option value="Card">Tarjeta</option>
-                        <option value="Transfer">Transferencia</option>
                     </select>
                 </div>
                 <div class="totals-panel">
@@ -255,9 +254,25 @@
                 <span class="invoice-date-value">@DateTime.Now.ToString("dd/MM/yyyy")</span>
             </div>
         </div>
-        <div class="flex gap-md" style="flex-wrap:wrap; margin-left:auto;">
+        <div class="flex gap-md" style="flex-wrap:wrap; margin-left:auto; align-items:center;">
+            @if (_isAutoSaving)
+            {
+                <span class="text-muted" style="font-size:var(--font-size-xs); margin-right:var(--spacing-md);">
+                    <i class="ph ph-spinner ph-spin"></i> Guardando...
+                </span>
+            }
+            else if (_draftSaleId.HasValue)
+            {
+                <span class="text-muted" style="font-size:var(--font-size-xs); margin-right:var(--spacing-md); color:var(--color-success) !important;">
+                    <i class="ph ph-cloud-check"></i> Borrador guardado
+                </span>
+            }
+
             <button class="btn btn--ghost" @onclick="OpenSaleHistoryModal">
                 <i class="ph ph-receipt"></i> Buscar Facturas
+            </button>
+            <button class="btn btn--danger btn--ghost" @onclick="CancelSale" disabled="@_isProcessing">
+                <i class="ph ph-trash"></i> Cancelar Venta
             </button>
             <button class="btn btn--primary btn--lg" @onclick="CreateSale" disabled="@_isProcessing">
                 @if (_isProcessing)
@@ -360,6 +375,15 @@
             </div>
 
             <div class="modal-footer">
+                <div style="display:flex; align-items:center; gap:var(--spacing-xs); margin-right:auto;">
+                    <span style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">Filas:</span>
+                    <select class="field-input" style="width:75px; padding:4px 8px; font-size:var(--font-size-sm); cursor:pointer;" value="@_customerPageSize" @onchange="OnCustomerPageSizeChanged">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                    </select>
+                </div>
                 <div class="pagination">
                     <button class="pagination-btn"
                             disabled="@(_customerCurrentPage <= 1)"
@@ -485,6 +509,15 @@
             </div>
 
             <div class="modal-footer">
+                <div style="display:flex; align-items:center; gap:var(--spacing-xs); margin-right:auto;">
+                    <span style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">Filas:</span>
+                    <select class="field-input" style="width:75px; padding:4px 8px; font-size:var(--font-size-sm); cursor:pointer;" value="@_productPageSize" @onchange="OnProductPageSizeChanged">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                    </select>
+                </div>
                 <div class="pagination">
                     <button class="pagination-btn"
                             disabled="@(_productCurrentPage <= 1)"
@@ -612,6 +645,15 @@
             </div>
 
             <div class="modal-footer">
+                <div style="display:flex; align-items:center; gap:var(--spacing-xs); margin-right:auto;">
+                    <span style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">Filas:</span>
+                    <select class="field-input" style="width:75px; padding:4px 8px; font-size:var(--font-size-sm); cursor:pointer;" value="@_saleHistoryPageSize" @onchange="OnSaleHistoryPageSizeChanged">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                    </select>
+                </div>
                 <div class="pagination">
                     <button class="pagination-btn"
                             disabled="@(_saleHistoryCurrentPage <= 1)"
@@ -690,6 +732,11 @@
     private Timer?               _customerSearchDebounceTimer;
     private Timer?               _saleSearchDebounceTimer;
 
+    // ── Auto-save state ──────────────────────────────────────────────────
+    private int?                 _draftSaleId          = null;
+    private bool                 _isAutoSaving         = false;
+    private Timer?               _autoSaveDebounceTimer;
+
     // ── PDF Preview ─────────────────────────────────────────────────────
     private bool   _isPdfPreviewModalOpen = false;
     private string _pdfPreviewUrl         = string.Empty;
@@ -706,6 +753,7 @@
     private string                        _customerSearchDocument     = string.Empty;
     private string                        _customerSearchLastName     = string.Empty;
     private int                           _customerCurrentPage        = 1;
+    private int                           _customerPageSize           = 10;
     private PagedResultModel<CustomerModel>? _customerPagedResult     = null;
     private CustomerModel?                _selectedCustomerRow        = null;
 
@@ -714,6 +762,7 @@
     private int?                          _productSearchId     = null;
     private string                        _productSearchName   = string.Empty;
     private int                           _productCurrentPage  = 1;
+    private int                           _productPageSize     = 10;
     private PagedResultModel<ProductModel>? _productPagedResult = null;
     private ProductModel?                 _selectedProductRow  = null;
 
@@ -722,6 +771,7 @@
     private int?                      _saleSearchId                = null;
     private string                    _saleSearchCustomerName      = string.Empty;
     private int                       _saleHistoryCurrentPage      = 1;
+    private int                       _saleHistoryPageSize         = 15;
     private PagedResultModel<SaleModel>? _saleHistoryPagedResult   = null;
 
     // ── Lifecycle ───────────────────────────────────────────────────────
@@ -742,6 +792,122 @@
         };
         _invoiceRefreshTimer.AutoReset = true;
         _invoiceRefreshTimer.Enabled = true;
+
+        // Auto-save debounce timer (1.5 seconds)
+        _autoSaveDebounceTimer = new Timer(1500);
+        _autoSaveDebounceTimer.Elapsed += async (sender, e) => await PerformAutoSaveAsync();
+        _autoSaveDebounceTimer.AutoReset = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDraftFromStorageAsync();
+        }
+    }
+
+    private async Task LoadDraftFromStorageAsync()
+    {
+        try
+        {
+            var savedDraftStr = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "DraftSaleId");
+            if (int.TryParse(savedDraftStr, out var draftId))
+            {
+                var draft = await SaleApiService.GetByIdAsync(draftId);
+                if (draft != null && (draft.Status == "Draft" || draft.Status == "Borrador"))
+                {
+                    _draftSaleId = draft.SaleId;
+                    _selectedCustomer = new CustomerModel { CustomerId = draft.CustomerId, FirstName = draft.CustomerName.Split(' ').FirstOrDefault() ?? "", LastName = draft.CustomerName.Split(' ').LastOrDefault() ?? "" };
+                    _selectedPaymentType = "Cash";
+                    
+                    _saleDetails.Clear();
+                    foreach (var det in draft.Details)
+                    {
+                        _saleDetails.Add(new SaleDetailModel
+                        {
+                            ProductId = det.ProductId,
+                            ProductName = det.ProductName,
+                            UnitPrice = det.UnitPrice,
+                            Quantity = det.Quantity,
+                            MaxStock = 999 // We should ideal fetch real max stock but this works for now
+                        });
+                    }
+                    StateHasChanged();
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "DraftSaleId");
+                }
+            }
+        }
+        catch { /* Ignore JS errors on prerender */ }
+    }
+
+    private void TriggerAutoSave()
+    {
+        if (_autoSaveDebounceTimer != null)
+        {
+            _autoSaveDebounceTimer.Stop();
+            _autoSaveDebounceTimer.Start();
+            _isAutoSaving = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PerformAutoSaveAsync()
+    {
+        if (_selectedCustomer == null || _saleDetails.Count == 0)
+        {
+            _isAutoSaving = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        var model = new CreateSaleModel
+        {
+            CustomerId = _selectedCustomer.CustomerId,
+            PaymentType = _selectedPaymentType,
+            Details = _saleDetails.Select(d => new CreateSaleDetailModel
+            {
+                ProductId = d.ProductId,
+                Quantity = d.Quantity
+            }).ToList()
+        };
+
+        var saved = await SaleApiService.SaveDraftAsync(_draftSaleId, model);
+        
+        await InvokeAsync(async () =>
+        {
+            if (saved != null)
+            {
+                _draftSaleId = saved.SaleId;
+                try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", "DraftSaleId", _draftSaleId.ToString()); } catch { }
+            }
+            _isAutoSaving = false;
+            StateHasChanged();
+        });
+    }
+
+    private async Task CancelSale()
+    {
+        var confirmed = await _confirmModal.ShowAsync("¿Está seguro de cancelar esta venta y borrar el progreso?", "Cancelar Venta", "Sí, cancelar");
+        if (!confirmed) return;
+
+        if (_draftSaleId.HasValue)
+        {
+            await SaleApiService.DeleteDraftAsync(_draftSaleId.Value);
+        }
+
+        try { await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "DraftSaleId"); } catch { }
+
+        _draftSaleId = null;
+        _selectedCustomer = null;
+        _saleDetails.Clear();
+        _selectedQuantity = 1;
+        _errorMessage = string.Empty;
+        _successMessage = "Venta cancelada y borrador eliminado.";
+        StateHasChanged();
     }
 
     public void Dispose() 
@@ -754,6 +920,8 @@
         _customerSearchDebounceTimer?.Dispose();
         _saleSearchDebounceTimer?.Stop();
         _saleSearchDebounceTimer?.Dispose();
+        _autoSaveDebounceTimer?.Stop();
+        _autoSaveDebounceTimer?.Dispose();
     }
 
     // ── Set quantity to max stock (Fetch latest from API) ────────────────
@@ -782,6 +950,7 @@
         {
             detail.MaxStock = latest.Stock;
             detail.Quantity = latest.Stock;
+            TriggerAutoSave();
             StateHasChanged();
         }
         else
@@ -807,6 +976,8 @@
             detail.Quantity = parsed;
         else
             detail.Quantity = 0;
+            
+        TriggerAutoSave();
     }
 
     // ── Add product to sale detail ──────────────────────────────────────
@@ -868,6 +1039,7 @@
 
         _selectedProduct  = null;
         _selectedQuantity = 1;
+        TriggerAutoSave();
     }
 
     // ── Remove detail row ───────────────────────────────────────────────
@@ -880,7 +1052,10 @@
             confirmText: "Sí, eliminar");
 
         if (confirmed)
+        {
             _saleDetails.Remove(saleDetailModel);
+            TriggerAutoSave();
+        }
     }
 
     // ── Create sale (invoice) ───────────────────────────────────────────
@@ -938,22 +1113,36 @@
             }).ToList()
         };
 
-        var savedSale = await SaleApiService.CreateAsync(createSaleModel);
+        var savedDraft = await SaleApiService.SaveDraftAsync(_draftSaleId, createSaleModel);
 
-        if (savedSale is not null)
+        if (savedDraft is null)
         {
-            var pdfBytes = await SaleApiService.GetPdfAsync(savedSale.SaleId);
+            _errorMessage = !string.IsNullOrEmpty(SaleApiService.LastErrorMessage) 
+                ? SaleApiService.LastErrorMessage 
+                : "Error al preparar la factura.";
+            _isProcessing = false;
+            return;
+        }
+
+        _draftSaleId = savedDraft.SaleId;
+        var paidSuccess = await SaleApiService.MarkAsPaidAsync(savedDraft.SaleId);
+
+        if (paidSuccess)
+        {
+            var pdfBytes = await SaleApiService.GetPdfAsync(savedDraft.SaleId);
             if (pdfBytes is not null)
             {
                 _pdfPreviewBase64      = Convert.ToBase64String(pdfBytes);
                 _pdfPreviewUrl         = $"data:application/pdf;base64,{_pdfPreviewBase64}";
-                _pdfPreviewFileName    = $"Factura_{savedSale.SaleId:D6}.pdf";
+                _pdfPreviewFileName    = $"Factura_{savedDraft.SaleId:D6}.pdf";
                 _isPdfPreviewModalOpen = true;
             }
 
-            _successMessage = $"Factura #{savedSale.SaleId:D6} emitida con éxito.";
+            _successMessage = $"Factura #{savedDraft.SaleId:D6} emitida con éxito.";
 
             // Reset form and advance invoice number
+            _draftSaleId       = null;
+            try { await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "DraftSaleId"); } catch { }
             _selectedCustomer  = null;
             _selectedProduct   = null;
             _saleDetails       = [];
@@ -964,7 +1153,7 @@
         {
             _errorMessage = !string.IsNullOrEmpty(SaleApiService.LastErrorMessage) 
                 ? SaleApiService.LastErrorMessage 
-                : "Error al crear la factura. Intente nuevamente.";
+                : "Error al cobrar la factura. Intente nuevamente.";
         }
 
         _isProcessing = false;
@@ -1047,8 +1236,17 @@
             documentNumber: _customerSearchDocument,
             lastName:       _customerSearchLastName,
             page:           page,
-            pageSize:       10,
+            pageSize:       _customerPageSize,
             onlyActive:     true);
+    }
+
+    private async Task OnCustomerPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _customerPageSize = size;
+            await LoadCustomerPageAsync(1);
+        }
     }
 
     private void SelectCustomerAndClose(CustomerModel customerModel)
@@ -1056,6 +1254,7 @@
         _selectedCustomer    = customerModel;
         _isCustomerModalOpen = false;
         _errorMessage        = string.Empty;
+        TriggerAutoSave();
     }
 
     // ══ PRODUCT MODAL ══════════════════════════════════════════════════
@@ -1106,9 +1305,18 @@
             productId:   _productSearchId,
             name:        _productSearchName,
             page:        page,
-            pageSize:    10,
+            pageSize:    _productPageSize,
             onlyInStock: true,   // Bug #2: solo mostrar productos con stock > 0
             onlyActive:  true);  // Solo mostrar productos activos
+    }
+
+    private async Task OnProductPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _productPageSize = size;
+            await LoadProductPageAsync(1);
+        }
     }
 
     private void SelectProductAndClose(ProductModel productModel)
@@ -1164,6 +1372,15 @@
             saleId:       _saleSearchId,
             customerName: _saleSearchCustomerName,
             page:         page,
-            pageSize:     15);
+            pageSize:     _saleHistoryPageSize);
+    }
+
+    private async Task OnSaleHistoryPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _saleHistoryPageSize = size;
+            await LoadSaleHistoryPageAsync(1);
+        }
     }
 }

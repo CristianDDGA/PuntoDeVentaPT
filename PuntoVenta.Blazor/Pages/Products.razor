@@ -26,16 +26,18 @@
             }
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr auto auto; gap:var(--spacing-md); align-items:flex-end;">
+        <div style="display:grid; grid-template-columns: 1fr auto; gap:var(--spacing-md); align-items:flex-end;">
             <div class="field-group">
-                <label class="field-label">Nombre</label>
-                <input class="field-input" @bind="SearchName" @bind:event="oninput" placeholder="Buscar producto" />
+                <label class="field-label" style="display:flex; align-items:center; gap:6px;">
+                    Nombre
+                    <span style="font-size:10px; background:rgba(99,102,241,0.15); color:#818cf8; border-radius:999px; padding:1px 8px; font-weight:normal; letter-spacing:0.03em;">Búsqueda en vivo</span>
+                </label>
+                <input class="field-input" @bind="SearchName" @bind:event="oninput" placeholder="Buscar producto..." />
             </div>
             <div class="field-group" style="flex-direction:row; align-items:center; gap:var(--spacing-sm);">
-                <input type="checkbox" @bind="OnlyInStock" />
+                <input type="checkbox" checked="@_onlyInStock" @onchange="OnOnlyInStockChanged" />
                 <label class="field-label" style="margin:0;">Solo con stock</label>
             </div>
-            <button class="btn btn--primary" @onclick="() => LoadPageAsync(1)">Buscar</button>
         </div>
     </div>
 
@@ -90,7 +92,8 @@
                                     <td class="align-center">
                                         @if (product.IsActive)
                                         {
-                                            <button class="btn btn--danger btn--sm" @onclick="() => DeactivateAsync(product.ProductId)" disabled="@_isBusy">Desactivar</button>
+                                            <button class="btn btn--primary btn--sm" @onclick="() => OpenEditModal(product)" disabled="@_isBusy" style="margin-right: 4px;">Editar</button>
+                                            <button class="btn btn--danger btn--sm" @onclick="() => DeleteProductAsync(product)" disabled="@_isBusy">Eliminar</button>
                                         }
                                         else
                                         {
@@ -106,13 +109,25 @@
 
             <div style="display:flex; justify-content:space-between; margin-top:var(--spacing-lg); align-items:center; gap:var(--spacing-md); flex-wrap:wrap;">
                 <span class="text-muted">@(_pagedResult?.TotalCount ?? 0) producto(s) · Página @_currentPage de @(_pagedResult?.TotalPages ?? 1)</span>
-                <div class="pagination">
-                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage - 1)" disabled="@(_currentPage <= 1)">‹ Anterior</button>
-                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage + 1)" disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))">Siguiente ›</button>
+                <div style="display:flex; align-items:center; gap:var(--spacing-md);">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="text-muted" style="font-size:var(--font-size-xs);">Mostrar:</span>
+                        <select class="field-input" style="width:75px; padding:4px 8px; font-size:var(--font-size-sm); cursor:pointer;" value="@_pageSize" @onchange="OnPageSizeChanged">
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                    <div class="pagination">
+                        <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage - 1)" disabled="@(_currentPage <= 1)">‹ Anterior</button>
+                        <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage + 1)" disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))">Siguiente ›</button>
+                    </div>
                 </div>
             </div>
         }
     </div>
+    <ConfirmModal @ref="_confirmModal" />
 </div>
 
 @if (_isCreateModalOpen)
@@ -120,10 +135,10 @@
     <div class="modal-overlay">
         <div class="modal-box" @onclick:stopPropagation>
             <div class="modal-header">
-                <span class="modal-title">Nuevo producto</span>
+                <span class="modal-title">@(_isEditing ? "Editar Producto" : "Nuevo Producto")</span>
                 <button class="btn btn--ghost btn--icon" @onclick="CloseCreateModal"><i class="ph ph-x"></i></button>
             </div>
-            <EditForm Model="_newProduct" OnValidSubmit="CreateProductAsync">
+            <EditForm Model="_newProduct" OnValidSubmit="SaveProductAsync">
                 <DataAnnotationsValidator />
                 <div class="modal-body">
                     <div class="form-grid form-grid-1">
@@ -150,7 +165,7 @@
                 </div>
                 <div class="modal-footer" style="justify-content: flex-end;">
                     <button type="button" class="btn btn--ghost" @onclick="CloseCreateModal">Cancelar</button>
-                    <button type="submit" class="btn btn--success" disabled="@_isBusy">Crear producto</button>
+                    <button type="submit" class="btn btn--success" disabled="@_isBusy">@(_isEditing ? "Guardar cambios" : "Crear producto")</button>
                 </div>
             </EditForm>
         </div>
@@ -158,8 +173,10 @@
 }
 
 @code {
+    private ConfirmModal _confirmModal = default!;
     private PagedResultModel<ProductModel>? _pagedResult;
     private int _currentPage = 1;
+    private int _pageSize = 10;
     private string _searchName = string.Empty;
     private bool _onlyInStock;
     private bool _isLoading;
@@ -186,16 +203,12 @@
         }
     }
 
-    private bool OnlyInStock
+    private async Task OnOnlyInStockChanged(ChangeEventArgs e)
     {
-        get => _onlyInStock;
-        set
+        if (bool.TryParse(e.Value?.ToString(), out var isChecked))
         {
-            if (_onlyInStock != value)
-            {
-                _onlyInStock = value;
-                _ = LoadPageAsync(1);
-            }
+            _onlyInStock = isChecked;
+            await LoadPageAsync(1);
         }
     }
 
@@ -207,8 +220,9 @@
             await InvokeAsync(async () =>
             {
                 await LoadPageAsync(1);
+                StateHasChanged();
             });
-        }, null, 400, System.Threading.Timeout.Infinite);
+        }, null, 350, System.Threading.Timeout.Infinite);
     }
 
     public void Dispose()
@@ -238,7 +252,7 @@
             _pagedResult = await ProductApiService.SearchPagedAsync(
                 name: string.IsNullOrWhiteSpace(_searchName) ? null : _searchName.Trim(),
                 page: _currentPage,
-                pageSize: 10,
+                pageSize: _pageSize,
                 onlyInStock: _onlyInStock);
         }
         finally
@@ -247,13 +261,28 @@
         }
     }
 
+    private bool _isEditing;
+    private int _editingProductId;
+
     private void OpenCreateModal()
     {
         _isCreateModalOpen = true;
+        _isEditing = false;
         _modalMessage = null;
         _newProduct.Name = string.Empty;
         _newProduct.Price = 0;
         _newProduct.Stock = 0;
+    }
+
+    private void OpenEditModal(ProductModel product)
+    {
+        _isCreateModalOpen = true;
+        _isEditing = true;
+        _editingProductId = product.ProductId;
+        _modalMessage = null;
+        _newProduct.Name = product.Name;
+        _newProduct.Price = product.Price;
+        _newProduct.Stock = product.Stock;
     }
 
     private void CloseCreateModal()
@@ -261,24 +290,38 @@
         _isCreateModalOpen = false;
     }
 
-    private async Task CreateProductAsync()
+    private async Task SaveProductAsync()
     {
         _isBusy = true;
         _modalMessage = null;
 
         try
         {
-            var saved = await ProductApiService.CreateAsync(_newProduct);
-            if (saved is null)
+            if (_isEditing)
             {
-                _modalMessage = "No se pudo crear el producto.";
-                _isModalError = true;
-                return;
+                var saved = await ProductApiService.UpdateAsync(_editingProductId, _newProduct);
+                if (saved is null)
+                {
+                    _modalMessage = "No se pudo actualizar el producto.";
+                    _isModalError = true;
+                    return;
+                }
+                SetMessage("Producto actualizado correctamente.", false);
+            }
+            else
+            {
+                var saved = await ProductApiService.CreateAsync(_newProduct);
+                if (saved is null)
+                {
+                    _modalMessage = "No se pudo crear el producto.";
+                    _isModalError = true;
+                    return;
+                }
+                SetMessage("Producto creado correctamente.", false);
             }
 
-            SetMessage("Producto creado correctamente.", false);
             CloseCreateModal();
-            await LoadPageAsync(1);
+            await LoadPageAsync(_currentPage);
         }
         finally
         {
@@ -303,16 +346,39 @@
         }
     }
 
-    private async Task DeactivateAsync(int productId)
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
     {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _pageSize = size;
+            await LoadPageAsync(1);
+        }
+    }
+
+    private async Task DeleteProductAsync(ProductModel product)
+    {
+        var confirmed = await _confirmModal.ShowAsync(
+            message: $"¿Está seguro de que desea eliminar el producto '{product.Name}'?",
+            title: "Eliminar Producto",
+            confirmText: "Sí, eliminar");
+
+        if (!confirmed) return;
+
         _isBusy = true;
         SetMessage(null, false);
 
         try
         {
-            var success = await ProductApiService.DeactivateAsync(productId);
-            SetMessage(success ? "Producto desactivado." : "No se pudo desactivar el producto.", !success);
-            await LoadPageAsync(_currentPage);
+            var result = await ProductApiService.DeleteAsync(product.ProductId);
+            if (result is not null && result.Success)
+            {
+                SetMessage(result.Message, false);
+                await LoadPageAsync(_currentPage);
+            }
+            else
+            {
+                SetMessage(result?.Message ?? "No se pudo eliminar el producto.", true);
+            }
         }
         finally
         {

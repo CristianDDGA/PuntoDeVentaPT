@@ -6,6 +6,7 @@
 @inject SaleApiService SaleApiService
 @inject IJSRuntime     JSRuntime
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
 
 <PageTitle>Historial de Facturas — Punto de Venta</PageTitle>
 
@@ -25,7 +26,10 @@
     <div class="card">
         <div style="display:grid; grid-template-columns:140px 1fr auto auto; gap:var(--spacing-md); align-items:flex-end;">
             <div class="field-group">
-                <label class="field-label">Nº Factura</label>
+                <label class="field-label" style="display:flex; align-items:center; gap:6px;">
+                    Nº Factura
+                    <span style="font-size:10px; background:rgba(99,102,241,0.15); color:#818cf8; border-radius:999px; padding:1px 8px; font-weight:normal; letter-spacing:0.03em;">En vivo</span>
+                </label>
                 <input class="field-input field-input--numeric"
                        type="number"
                        placeholder="Ej: 1001"
@@ -33,7 +37,10 @@
                        @oninput="OnSearchSaleIdInput" />
             </div>
             <div class="field-group">
-                <label class="field-label">Nombre del Cliente</label>
+                <label class="field-label" style="display:flex; align-items:center; gap:6px;">
+                    Nombre del Cliente
+                    <span style="font-size:10px; background:rgba(99,102,241,0.15); color:#818cf8; border-radius:999px; padding:1px 8px; font-weight:normal; letter-spacing:0.03em;">En vivo</span>
+                </label>
                 <input class="field-input"
                        type="text"
                        placeholder="Buscar por nombre o apellido..."
@@ -129,13 +136,17 @@
                                     $@saleModel.Total.ToString("N2")
                                 </td>
                                 <td class="align-center">
-                                    @if (saleModel.Status == "Pagado")
+                                    @if (saleModel.Status == "Confirmada" || saleModel.Status == "Confirmed")
                                     {
-                                        <span class="badge badge--success">Pagado</span>
+                                        <span class="badge badge--success">Confirmada</span>
                                     }
-                                    else if (saleModel.Status == "Anulado")
+                                    else if (saleModel.Status == "Cancelada" || saleModel.Status == "Cancelled")
                                     {
-                                        <span class="badge badge--error">Anulado</span>
+                                        <span class="badge badge--error">Cancelada</span>
+                                    }
+                                    else if (saleModel.Status == "Draft" || saleModel.Status == "Borrador")
+                                    {
+                                        <span class="badge badge--warning">Borrador</span>
                                     }
                                     else
                                     {
@@ -146,11 +157,17 @@
                                     <button class="btn btn--secondary btn--sm" @onclick="() => OpenDetailModal(saleModel)">
                                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Ver
                                     </button>
+                                    @if (saleModel.Status == "Draft" || saleModel.Status == "Borrador")
+                                    {
+                                        <button class="btn btn--primary btn--sm" style="margin-left:4px;" @onclick="() => ContinueDraftAsync(saleModel.SaleId)">
+                                            Continuar
+                                        </button>
+                                    }
                                 </td>
                                 @if (_isAdmin)
                                 {
                                     <td class="align-center">
-                                        @if (saleModel.Status != "Anulado")
+                                        @if (saleModel.Status != "Cancelada")
                                         {
                                             <button class="btn btn--danger btn--sm" @onclick="() => VoidSaleAsync(saleModel.SaleId)" title="Anular Factura">
                                                 Anular
@@ -173,10 +190,21 @@
 
             <!-- Pagination footer -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-top:var(--spacing-lg); flex-wrap:wrap; gap:var(--spacing-md);">
-                <span class="pagination-info">
-                    @(_pagedResult?.TotalCount ?? 0) facturas en total
-                    · Mostrando página @_currentPage de @(_pagedResult?.TotalPages ?? 1)
-                </span>
+                <div style="display:flex; align-items:center; gap:var(--spacing-md); flex-wrap:wrap;">
+                    <span class="pagination-info">
+                        @(_pagedResult?.TotalCount ?? 0) facturas en total
+                        · Mostrando página @_currentPage de @(_pagedResult?.TotalPages ?? 1)
+                    </span>
+                    <div style="display:flex; align-items:center; gap:var(--spacing-xs);">
+                        <span style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">Filas:</span>
+                        <select class="field-input" style="width:75px; padding:4px 8px; font-size:var(--font-size-sm); cursor:pointer;" value="@_pageSize" @onchange="OnPageSizeChanged">
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                </div>
 
                 <div class="pagination">
                     <button class="pagination-btn"
@@ -330,7 +358,7 @@
     private string  _searchCustomerName = string.Empty;
     private bool    _excludeVoided     = false;
     private int     _currentPage       = 1;
-    private const int PageSize         = 15;
+    private int     _pageSize          = 15;
 
     // ── Data state ──────────────────────────────────────────────────────
     private PagedResultModel<SaleModel>? _pagedResult = null;
@@ -383,8 +411,9 @@
             await InvokeAsync(async () =>
             {
                 await LoadPageAsync(1);
+                StateHasChanged();
             });
-        }, null, 400, System.Threading.Timeout.Infinite);
+        }, null, 350, System.Threading.Timeout.Infinite);
     }
 
     private async Task ToggleExcludeVoided()
@@ -409,10 +438,19 @@
             saleId:        _searchSaleId,
             customerName:  _searchCustomerName,
             page:          page,
-            pageSize:      PageSize,
+            pageSize:      _pageSize,
             excludeVoided: _excludeVoided);
 
         _isLoading = false;
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _pageSize = size;
+            await LoadPageAsync(1);
+        }
     }
 
     // ── Detail modal ────────────────────────────────────────────────────
@@ -428,6 +466,14 @@
         _isDetailModalOpen = false;
         _selectedSale      = null;
     }
+
+    private async Task ContinueDraftAsync(int saleId)
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "DraftSaleId", saleId.ToString());
+        NavigationManager.NavigateTo("/nueva-venta");
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────
 
     // ── PDF Preview & Download ──────────────────────────────────────────
 

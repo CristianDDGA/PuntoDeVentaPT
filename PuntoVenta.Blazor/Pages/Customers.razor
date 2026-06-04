@@ -26,16 +26,21 @@
             }
         </div>
 
-        <div style="display:grid; grid-template-columns: 180px 1fr auto; gap:var(--spacing-md); align-items:flex-end;">
+        <div style="display:grid; grid-template-columns: 180px 1fr; gap:var(--spacing-md); align-items:flex-end;">
             <div class="field-group">
-                <label class="field-label">Documento</label>
+                <label class="field-label" style="display:flex; align-items:center; gap:6px;">
+                    Documento
+                    <span style="font-size:10px; background:rgba(99,102,241,0.15); color:#818cf8; border-radius:999px; padding:1px 8px; font-weight:normal; letter-spacing:0.03em;">En vivo</span>
+                </label>
                 <input class="field-input" @bind="SearchDocument" @bind:event="oninput" placeholder="Ej: 1720..." />
             </div>
             <div class="field-group">
-                <label class="field-label">Apellido</label>
+                <label class="field-label" style="display:flex; align-items:center; gap:6px;">
+                    Apellido
+                    <span style="font-size:10px; background:rgba(99,102,241,0.15); color:#818cf8; border-radius:999px; padding:1px 8px; font-weight:normal; letter-spacing:0.03em;">En vivo</span>
+                </label>
                 <input class="field-input" @bind="SearchLastName" @bind:event="oninput" placeholder="Buscar por apellido" />
             </div>
-            <button class="btn btn--primary" @onclick="() => LoadPageAsync(1)">Buscar</button>
         </div>
     </div>
 
@@ -64,6 +69,7 @@
                             <th>ID</th>
                             <th>Documento</th>
                             <th>Nombre</th>
+                            <th>Apellido</th>
                             <th>Ciudad</th>
                             <th>Email</th>
                             <th class="align-center">Estado</th>
@@ -79,7 +85,8 @@
                             <tr>
                                 <td class="font-mono">@customer.CustomerId</td>
                                 <td>@customer.DocumentNumber</td>
-                                <td>@customer.FullName</td>
+                                <td>@customer.FirstName</td>
+                                <td>@customer.LastName</td>
                                 <td>@customer.City</td>
                                 <td>@customer.Email</td>
                                 <td class="align-center">
@@ -92,7 +99,7 @@
                                     <td class="align-center">
                                         @if (customer.IsActive)
                                         {
-                                            <button class="btn btn--danger btn--sm" @onclick="() => DeactivateAsync(customer.CustomerId)" disabled="@_isBusy">Desactivar</button>
+                                            <button class="btn btn--danger btn--sm" @onclick="() => DeleteCustomerAsync(customer)" disabled="@_isBusy">Eliminar</button>
                                         }
                                         else
                                         {
@@ -108,13 +115,25 @@
 
             <div style="display:flex; justify-content:space-between; margin-top:var(--spacing-lg); align-items:center; gap:var(--spacing-md); flex-wrap:wrap;">
                 <span class="text-muted">@(_pagedResult?.TotalCount ?? 0) cliente(s) · Página @_currentPage de @(_pagedResult?.TotalPages ?? 1)</span>
-                <div class="pagination">
-                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage - 1)" disabled="@(_currentPage <= 1)">‹ Anterior</button>
-                    <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage + 1)" disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))">Siguiente ›</button>
+                <div style="display:flex; align-items:center; gap:var(--spacing-md);">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="text-muted" style="font-size:var(--font-size-xs);">Mostrar:</span>
+                        <select class="field-input" style="width:75px; padding:4px 8px; font-size:var(--font-size-sm); cursor:pointer;" value="@_pageSize" @onchange="OnPageSizeChanged">
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                    <div class="pagination">
+                        <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage - 1)" disabled="@(_currentPage <= 1)">‹ Anterior</button>
+                        <button class="pagination-btn" @onclick="() => LoadPageAsync(_currentPage + 1)" disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))">Siguiente ›</button>
+                    </div>
                 </div>
             </div>
         }
     </div>
+    <ConfirmModal @ref="_confirmModal" />
 </div>
 
 @if (_isCreateModalOpen)
@@ -180,8 +199,10 @@
 }
 
 @code {
+    private ConfirmModal _confirmModal = default!;
     private PagedResultModel<CustomerModel>? _pagedResult;
     private int _currentPage = 1;
+    private int _pageSize = 10;
     private string _searchDocument = string.Empty;
     private string _searchLastName = string.Empty;
     private bool _isLoading;
@@ -229,8 +250,9 @@
             await InvokeAsync(async () =>
             {
                 await LoadPageAsync(1);
+                StateHasChanged();
             });
-        }, null, 400, System.Threading.Timeout.Infinite);
+        }, null, 350, System.Threading.Timeout.Infinite);
     }
 
     public void Dispose()
@@ -261,7 +283,7 @@
                 documentNumber: string.IsNullOrWhiteSpace(_searchDocument) ? null : _searchDocument.Trim(),
                 lastName: string.IsNullOrWhiteSpace(_searchLastName) ? null : _searchLastName.Trim(),
                 page: _currentPage,
-                pageSize: 10);
+                pageSize: _pageSize);
         }
         finally
         {
@@ -329,16 +351,39 @@
         }
     }
 
-    private async Task DeactivateAsync(int customerId)
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
     {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _pageSize = size;
+            await LoadPageAsync(1);
+        }
+    }
+
+    private async Task DeleteCustomerAsync(CustomerModel customer)
+    {
+        var confirmed = await _confirmModal.ShowAsync(
+            message: $"¿Está seguro de que desea eliminar al cliente '{customer.FullName}'?",
+            title: "Eliminar Cliente",
+            confirmText: "Sí, eliminar");
+
+        if (!confirmed) return;
+
         _isBusy = true;
         SetMessage(null, false);
 
         try
         {
-            var success = await CustomerApiService.DeactivateAsync(customerId);
-            SetMessage(success ? "Cliente desactivado." : "No se pudo desactivar el cliente.", !success);
-            await LoadPageAsync(_currentPage);
+            var result = await CustomerApiService.DeleteAsync(customer.CustomerId);
+            if (result is not null && result.Success)
+            {
+                SetMessage(result.Message, false);
+                await LoadPageAsync(_currentPage);
+            }
+            else
+            {
+                SetMessage(result?.Message ?? "No se pudo eliminar al cliente.", true);
+            }
         }
         finally
         {

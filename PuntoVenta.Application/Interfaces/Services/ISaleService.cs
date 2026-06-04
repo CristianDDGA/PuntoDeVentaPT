@@ -7,7 +7,10 @@ public interface ISaleService
 {
     Task<IEnumerable<SaleDto>> GetAllAsync();
     Task<SaleDto?>             GetByIdAsync(int saleId);
-    Task<SaleDto>              CreateAsync(CreateSaleDto dto);
+    Task<SaleDto>              CreateAsync(CreateSaleDto dto, int? userId = null);
+    
+    Task<SaleDto>              SaveDraftAsync(int? saleId, CreateSaleDto dto, int? userId = null);
+    Task<bool>                 DeleteDraftAsync(int saleId);
 
     /// <summary>
     /// Returns the next correlative invoice number (last SaleId + 1).
@@ -22,7 +25,8 @@ public interface ISaleService
         string? customerName,
         int     page,
         int     pageSize,
-        bool    excludeVoided = false);
+        bool    excludeVoided = false,
+        int?    sellerId = null);
 
     Task<bool> VoidSaleAsync(int saleId);
     Task<bool> MarkAsPaidAsync(int saleId);

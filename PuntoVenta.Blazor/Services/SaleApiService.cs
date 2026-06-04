@@ -59,6 +59,40 @@ public class SaleApiService
         }
     }
 
+    public async Task<SaleModel?> SaveDraftAsync(int? saleId, CreateSaleModel createSaleModel)
+    {
+        LastErrorMessage = string.Empty;
+        try
+        {
+            var url = saleId.HasValue ? $"api/Sales/draft?saleId={saleId}" : "api/Sales/draft";
+            var httpResponse = await _httpClient.PostAsJsonAsync(url, createSaleModel);
+            
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                var errorData = await httpResponse.Content.ReadFromJsonAsync<ErrorResponse>();
+                LastErrorMessage = errorData?.Message ?? "Error al guardar el borrador.";
+                return null;
+            }
+
+            return await httpResponse.Content.ReadFromJsonAsync<SaleModel>();
+        }
+        catch (Exception ex)
+        {
+            LastErrorMessage = $"Error de conexión: {ex.Message}";
+            return null;
+        }
+    }
+
+    public async Task<bool> DeleteDraftAsync(int saleId)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/Sales/draft/{saleId}");
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
     private class ErrorResponse { public string Message { get; set; } = string.Empty; }
 
     public async Task<byte[]?> GetPdfAsync(int saleId)

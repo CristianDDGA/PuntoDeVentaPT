@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IErrorLogRepository, ErrorLogRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Servicios de Application (Se quedan exactamente igual)
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<ISaleService, SaleService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IErrorLogService, ErrorLogService>();
 
         // Servicios de Infrastructure (Se quedan exactamente igual)
         services.AddScoped<IPdfService, PdfService>();

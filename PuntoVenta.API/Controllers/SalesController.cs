@@ -59,7 +59,13 @@ public class SalesController : ControllerBase
         if (page < 1)     page     = 1;
         if (pageSize < 1) pageSize = 15;
 
-        var pagedResult = await _saleService.SearchPagedAsync(saleId, customerName, page, pageSize, excludeVoided);
+        int? sellerId = null;
+        if (User.IsInRole(AppRoles.Seller))
+        {
+            sellerId = GetCurrentUserId();
+        }
+
+        var pagedResult = await _saleService.SearchPagedAsync(saleId, customerName, page, pageSize, excludeVoided, sellerId);
         return Ok(pagedResult);
     }
 
@@ -82,8 +88,37 @@ public class SalesController : ControllerBase
         if (!validationResult.IsValid)
             return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
 
-        var savedSale = await _saleService.CreateAsync(createSaleDto);
+        var userId = GetCurrentUserId();
+        var savedSale = await _saleService.CreateAsync(createSaleDto, userId);
         return CreatedAtAction(nameof(GetById), new { saleId = savedSale.SaleId }, savedSale);
+    }
+
+    [HttpPost("draft")]
+    public async Task<IActionResult> SaveDraft([FromQuery] int? saleId, [FromBody] CreateSaleDto createSaleDto)
+    {
+        var validationResult = await _createSaleValidator.ValidateAsync(createSaleDto);
+
+        if (!validationResult.IsValid)
+            return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+
+        var userId = GetCurrentUserId();
+        var savedSale = await _saleService.SaveDraftAsync(saleId, createSaleDto, userId);
+        return Ok(savedSale);
+    }
+
+    [HttpDelete("draft/{saleId:int}")]
+    public async Task<IActionResult> DeleteDraft(int saleId)
+    {
+        try
+        {
+            var success = await _saleService.DeleteDraftAsync(saleId);
+            if (!success) return NotFound($"Borrador con id {saleId} no encontrado.");
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
     }
 
     [HttpGet("{saleId:int}/pdf")]
@@ -114,7 +149,7 @@ public class SalesController : ControllerBase
         }
     }
 
-    [Authorize(Roles = AppRoles.Admin)]
+    [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Seller}")]
     [HttpPut("{saleId:int}/pay")]
     public async Task<IActionResult> MarkAsPaid(int saleId)
     {

@@ -9,7 +9,8 @@ public interface ISaleRepository
     Task<Sale?>             GetByIdAsync(int saleId);
     Task<Sale?>             GetByIdTrackedAsync(int saleId);
     Task<Sale>              AddAsync(Sale sale);
-    Task                    UpdateAsync(Sale sale); Task<int> GetTotalSalesCountAsync();
+    Task                    UpdateAsync(Sale sale);
+    Task                    DeleteAsync(Sale sale); Task<int> GetTotalSalesCountAsync();
     Task<IEnumerable<(decimal Total, DateTime SaleDate)>> GetSalesStatsOptimizedAsync();
     Task<List<RecentSaleDto>> GetRecentSalesDashboardAsync(int count);
     Task<List<TopProductDto>> GetTopProductsDashboardAsync(int days, int topCount);
@@ -29,5 +30,6 @@ public interface ISaleRepository
         string? customerName,
         int     page,
         int     pageSize,
-        bool    excludeVoided = false);
+        bool    excludeVoided = false,
+        int?    sellerId = null);
 }

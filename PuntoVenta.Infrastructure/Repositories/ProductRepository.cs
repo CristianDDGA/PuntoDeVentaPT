@@ -31,11 +31,21 @@ public class ProductRepository : IProductRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(product => product.ProductId == productId);
 
+    public async Task<Product?> GetByIdTrackedAsync(int productId)
+        => await _appDbContext.Products
+            .FirstOrDefaultAsync(product => product.ProductId == productId);
+
     public async Task<Product> AddAsync(Product newProduct)
     {
         await _appDbContext.Products.AddAsync(newProduct);
         await _appDbContext.SaveChangesAsync();
         return newProduct;
+    }
+
+    public async Task UpdateAsync(Product product)
+    {
+        _appDbContext.Products.Update(product);
+        await _appDbContext.SaveChangesAsync();
     }
 
     public async Task<bool> ActivateAsync(int productId)
@@ -115,4 +125,17 @@ public class ProductRepository : IProductRepository
 
         return (items, totalCount);
     }
-}
+
+    public async Task<bool> HasSalesAsync(int productId)
+        => await _appDbContext.SaleDetails.AnyAsync(sd => sd.ProductId == productId);
+
+    public async Task<bool> PhysicalDeleteAsync(int productId)
+    {
+        var product = await _appDbContext.Products.FirstOrDefaultAsync(p => p.ProductId == productId);
+        if (product == null) return false;
+
+        _appDbContext.Products.Remove(product);
+        var affected = await _appDbContext.SaveChangesAsync();
+        return affected > 0;
+    }
+}

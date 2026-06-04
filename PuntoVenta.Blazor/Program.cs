@@ -24,5 +24,6 @@ builder.Services.AddScoped<ProductApiService>();
 builder.Services.AddScoped<SaleApiService>();
 builder.Services.AddScoped<DashboardApiService>();
 builder.Services.AddScoped<UserApiService>();
+builder.Services.AddScoped<ErrorLogApiService>();
 
 await builder.Build().RunAsync();

@@ -94,4 +94,17 @@ public class CustomerRepository : ICustomerRepository
 
         return (items, totalCount);
     }
-}
+
+    public async Task<bool> HasSalesAsync(int customerId)
+        => await _appDbContext.Sales.AnyAsync(s => s.CustomerId == customerId);
+
+    public async Task<bool> PhysicalDeleteAsync(int customerId)
+    {
+        var customer = await _appDbContext.Customers.FirstOrDefaultAsync(c => c.CustomerId == customerId);
+        if (customer == null) return false;
+
+        _appDbContext.Customers.Remove(customer);
+        var affected = await _appDbContext.SaveChangesAsync();
+        return affected > 0;
+    }
+}

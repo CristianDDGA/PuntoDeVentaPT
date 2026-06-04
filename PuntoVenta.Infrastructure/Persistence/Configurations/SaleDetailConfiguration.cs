@@ -18,6 +18,10 @@ public class SaleDetailConfiguration : IEntityTypeConfiguration<SaleDetail>
         saleDetailBuilder.Property(saleDetail => saleDetail.UnitPrice)
             .HasColumnType("decimal(10,2)");
 
+        saleDetailBuilder.Property(saleDetail => saleDetail.ProductName)
+            .IsRequired()
+            .HasMaxLength(150);
+
         // Subtotal es calculado en memoria, no se persiste (ya lo maneja SQL)
         saleDetailBuilder.Ignore(saleDetail => saleDetail.Subtotal);
 

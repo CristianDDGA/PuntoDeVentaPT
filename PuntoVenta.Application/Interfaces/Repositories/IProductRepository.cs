@@ -8,9 +8,13 @@ public interface IProductRepository
     Task<IEnumerable<Product>> SearchByNameAsync(string name);
     Task<int> GetTotalProductsCountAsync();
     Task<Product?>             GetByIdAsync(int productId);
+    Task<Product?>             GetByIdTrackedAsync(int productId);
     Task<Product>              AddAsync(Product product);
+    Task                       UpdateAsync(Product product);
     Task<bool>                 ActivateAsync(int productId);
     Task<bool>                 DeactivateAsync(int productId);
+    Task<bool>                 HasSalesAsync(int productId);
+    Task<bool>                 PhysicalDeleteAsync(int productId);
     Task                       UpdateStockAsync(int productId, int newStock);
     Task<bool>                 ReduceStockAsync(int productId, int quantity);
 

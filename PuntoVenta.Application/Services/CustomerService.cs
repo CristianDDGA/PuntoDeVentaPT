@@ -67,4 +67,39 @@ public class CustomerService : ICustomerService
         var customerDtos        = items.Adapt<IEnumerable<CustomerDto>>();
         return PagedResult<CustomerDto>.Create(customerDtos, totalCount, page, pageSize);
     }
-}
+
+    public async Task<DeleteResultDto> DeleteAsync(int customerId)
+    {
+        var existingCustomer = await _customerRepository.GetByIdAsync(customerId);
+        if (existingCustomer == null)
+        {
+            return new DeleteResultDto
+            {
+                Success = false,
+                Message = "Cliente no encontrado."
+            };
+        }
+
+        var hasSales = await _customerRepository.HasSalesAsync(customerId);
+        if (hasSales)
+        {
+            var deactivated = await _customerRepository.DeactivateAsync(customerId);
+            return new DeleteResultDto
+            {
+                Success = deactivated,
+                IsLogicalDelete = true,
+                Message = $"El cliente '{existingCustomer.FullName}' tiene historial de ventas asociado. Se ha marcado como inactivo (eliminación lógica)."
+            };
+        }
+        else
+        {
+            var deleted = await _customerRepository.PhysicalDeleteAsync(customerId);
+            return new DeleteResultDto
+            {
+                Success = deleted,
+                IsLogicalDelete = false,
+                Message = $"El cliente '{existingCustomer.FullName}' fue eliminado físicamente con éxito del sistema."
+            };
+        }
+    }
+}

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 using PuntoVenta.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using PuntoVenta.Infrastructure.Persistence;
 namespace PuntoVenta.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260604062653_AddUserIdToSale")]
+    partial class AddUserIdToSale
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -263,11 +266,6 @@ namespace PuntoVenta.Infrastructure.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("NUMBER(10)");
 
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("NVARCHAR2(150)");
-
                     b.Property<int>("Quantity")
                         .HasColumnType("NUMBER(10)");
 
@@ -299,12 +297,6 @@ namespace PuntoVenta.Infrastructure.Migrations
 
                     b.Property<byte>("MovementType")
                         .HasColumnType("NUMBER(3)");
-
-                    b.Property<int>("NewStock")
-                        .HasColumnType("NUMBER(10)");
-
-                    b.Property<int>("PreviousStock")
-                        .HasColumnType("NUMBER(10)");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("NUMBER(10)");

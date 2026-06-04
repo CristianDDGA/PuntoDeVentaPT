@@ -11,6 +11,7 @@ public interface ICustomerService
     Task<CustomerDto>              CreateAsync(CreateCustomerDto dto);
     Task<bool>                     ActivateAsync(int customerId);
     Task<bool>                     DeactivateAsync(int customerId);
+    Task<DeleteResultDto>          DeleteAsync(int customerId);
 
     /// <summary>
     /// Returns a paginated subset of customers filtered by optional customerId (exact) or lastName (LIKE).

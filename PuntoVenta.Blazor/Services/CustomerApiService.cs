@@ -81,14 +81,23 @@ public class CustomerApiService
         catch { return false; }
     }
 
-    public async Task<bool> DeactivateAsync(int customerId)
+    public async Task<DeleteResultModel?> DeleteAsync(int customerId)
     {
         try
         {
-            var response = await _httpClient.PutAsync($"api/Customers/{customerId}/deactivate", null);
-            return response.IsSuccessStatusCode;
+            var response = await _httpClient.DeleteAsync($"api/Customers/{customerId}");
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<DeleteResultModel>();
+            }
+            
+            var errMessage = await response.Content.ReadAsStringAsync();
+            return new DeleteResultModel { Success = false, Message = errMessage };
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            return new DeleteResultModel { Success = false, Message = ex.Message };
+        }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

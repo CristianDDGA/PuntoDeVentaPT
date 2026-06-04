@@ -32,6 +32,22 @@ public class Product
         };
     }
 
+    public void Update(string name, decimal price, int stock)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new DomainException("El nombre del producto es obligatorio.");
+
+        if (price <= 0)
+            throw new DomainException("El precio debe ser mayor a cero.");
+
+        if (stock < 0)
+            throw new DomainException("El stock no puede ser negativo.");
+
+        Name = name.Trim();
+        Price = price;
+        Stock = stock;
+    }
+
     // Lógica de negocio: reducir stock al vender
     public void ReduceStock(int quantity)
     {

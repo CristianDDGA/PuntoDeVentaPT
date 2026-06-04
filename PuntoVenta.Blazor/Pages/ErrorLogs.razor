@@ -1,0 +1,198 @@
+@page "/error-logs"
+@attribute [Authorize(Roles = "Admin")]
+@using PuntoVenta.Blazor.Models
+@using PuntoVenta.Blazor.Services
+@inject ErrorLogApiService ErrorLogApiService
+
+<PageTitle>Registro de Errores — Punto de Venta</PageTitle>
+
+<div class="section-gap">
+    <div>
+        <h1 style="font-size:var(--font-size-2xl); font-weight:var(--font-weight-bold); color:var(--color-text-primary); margin-bottom:4px;">Registro de Errores (Logs)</h1>
+        <p class="text-muted">Visualiza y analiza los errores del sistema y las excepciones capturadas.</p>
+    </div>
+
+    <div class="card">
+        @if (_isLoading)
+        {
+            <div class="flex-center" style="padding:var(--spacing-xl);"><div class="loader-ring"></div></div>
+        }
+        else if ((_pagedResult?.Items.Count ?? 0) == 0)
+        {
+            <div class="empty-state">
+                <p class="empty-state-text">No se encontraron registros de error en el sistema.</p>
+            </div>
+        }
+        else
+        {
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Método</th>
+                            <th>Ruta</th>
+                            <th>Mensaje de Error</th>
+                            <th class="align-center">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in _pagedResult?.Items ?? [])
+                        {
+                            <tr>
+                                <td style="white-space: nowrap;" class="font-mono text-muted">@log.OccurredAt.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                <td>
+                                    <span class="badge @GetMethodBadgeClass(log.HttpMethod)">@log.HttpMethod</span>
+                                </td>
+                                <td class="font-mono" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@log.Path">@log.Path</td>
+                                <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@log.Message">@log.Message</td>
+                                <td class="align-center">
+                                    <button class="btn btn--secondary btn--sm" @onclick="() => OpenDetailModal(log)">
+                                        <i class="ph ph-eye"></i> StackTrace
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination footer -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:var(--spacing-lg); flex-wrap:wrap; gap:var(--spacing-md);">
+                <div style="display:flex; align-items:center; gap:var(--spacing-md); flex-wrap:wrap;">
+                    <span class="pagination-info">
+                        @(_pagedResult?.TotalCount ?? 0) logs en total
+                        · Mostrando página @_currentPage de @(_pagedResult?.TotalPages ?? 1)
+                    </span>
+                    <div style="display:flex; align-items:center; gap:var(--spacing-xs);">
+                        <span style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">Filas:</span>
+                        <select class="field-input" style="width:75px; padding:4px 8px; font-size:var(--font-size-sm); cursor:pointer;" value="@_pageSize" @onchange="OnPageSizeChanged">
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pagination">
+                    <button class="pagination-btn"
+                            disabled="@(_currentPage <= 1)"
+                            @onclick="() => LoadPageAsync(_currentPage - 1)">‹ Anterior</button>
+
+                    @{
+                        int totalPages = _pagedResult?.TotalPages ?? 1;
+                        int startPage = Math.Max(1, _currentPage - 2);
+                        int endPage = Math.Min(totalPages, startPage + 4);
+                        if (endPage - startPage < 4) startPage = Math.Max(1, endPage - 4);
+                    }
+                    @for (int pageIndex = startPage; pageIndex <= endPage; pageIndex++)
+                    {
+                        var capturedPage = pageIndex;
+                        <button class="pagination-btn @(capturedPage == _currentPage ? "pagination-btn--active" : "")"
+                                @onclick="() => LoadPageAsync(capturedPage)">
+                            @capturedPage
+                        </button>
+                    }
+
+                    <button class="pagination-btn"
+                            disabled="@(_currentPage >= (_pagedResult?.TotalPages ?? 1))"
+                            @onclick="() => LoadPageAsync(_currentPage + 1)">Siguiente ›</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal de Detalle de Log -->
+@if (_isDetailModalOpen && _selectedLog != null)
+{
+    <div class="modal-overlay" @onclick="CloseDetailModal">
+        <div class="modal-box modal-box--wide" style="max-height: 85vh; display: flex; flex-direction: column;" @onclick:stopPropagation>
+            <div class="modal-header">
+                <span class="modal-title" style="display:flex; align-items:center; gap:var(--spacing-xs);">
+                    <i class="ph ph-warning-octagon" style="color:var(--color-danger);"></i>
+                    Detalle del Error #@_selectedLog.ErrorLogId
+                </span>
+                <button class="btn btn--ghost btn--icon" @onclick="CloseDetailModal">✕</button>
+            </div>
+            <div class="modal-body" style="overflow-y:auto; padding:var(--spacing-lg);">
+                <div style="display:grid; grid-template-columns: 120px 1fr; gap:var(--spacing-sm) var(--spacing-md); margin-bottom:var(--spacing-lg);">
+                    <div style="font-weight:bold; color:var(--color-text-secondary);">Fecha:</div>
+                    <div>@_selectedLog.OccurredAt.ToString("dd/MM/yyyy HH:mm:ss")</div>
+
+                    <div style="font-weight:bold; color:var(--color-text-secondary);">HTTP Método:</div>
+                    <div><span class="badge @GetMethodBadgeClass(_selectedLog.HttpMethod)">@_selectedLog.HttpMethod</span></div>
+
+                    <div style="font-weight:bold; color:var(--color-text-secondary);">Ruta:</div>
+                    <div class="font-mono">@_selectedLog.Path</div>
+
+                    <div style="font-weight:bold; color:var(--color-text-secondary);">Mensaje:</div>
+                    <div style="font-weight:bold; color:var(--color-danger);">@_selectedLog.Message</div>
+                </div>
+
+                <div style="font-weight:bold; color:var(--color-text-secondary); margin-bottom:var(--spacing-xs);">Stack Trace (Pila de llamadas):</div>
+                <pre style="background:var(--color-bg-primary); border:1px solid var(--color-border); border-radius:var(--border-radius-md); padding:var(--spacing-md); font-family:var(--font-mono); font-size:var(--font-size-xs); color:var(--color-text-primary); overflow:auto; white-space:pre-wrap; max-height:400px; line-height:1.4;">@_selectedLog.StackTrace</pre>
+            </div>
+            <div class="modal-footer" style="justify-content:flex-end;">
+                <button class="btn btn--ghost" @onclick="CloseDetailModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PagedResultModel<ErrorLogModel>? _pagedResult;
+    private bool _isLoading = true;
+    private int _currentPage = 1;
+    private int _pageSize = 15;
+
+    private bool _isDetailModalOpen = false;
+    private ErrorLogModel? _selectedLog;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync(1);
+    }
+
+    private async Task LoadPageAsync(int page)
+    {
+        _isLoading = true;
+        _currentPage = page;
+        _pagedResult = await ErrorLogApiService.GetPagedAsync(page, _pageSize);
+        _isLoading = false;
+    }
+
+    private async Task OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _pageSize = size;
+            await LoadPageAsync(1);
+        }
+    }
+
+    private void OpenDetailModal(ErrorLogModel log)
+    {
+        _selectedLog = log;
+        _isDetailModalOpen = true;
+    }
+
+    private void CloseDetailModal()
+    {
+        _isDetailModalOpen = false;
+        _selectedLog = null;
+    }
+
+    private string GetMethodBadgeClass(string? method)
+    {
+        return method?.ToUpper() switch
+        {
+            "GET" => "badge--success",
+            "POST" => "badge--primary",
+            "PUT" => "badge--warning",
+            "DELETE" => "badge--error",
+            _ => "badge--secondary"
+        };
+    }
+}

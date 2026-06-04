@@ -10,7 +10,8 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerDto>
         RuleFor(customer => customer.DocumentNumber)
             .NotEmpty().WithMessage("El número de documento (RUC/Cédula) es obligatorio.")
             .Must(doc => !string.IsNullOrWhiteSpace(doc)).WithMessage("El número de documento no puede contener solo espacios en blanco.")
-            .MaximumLength(20).WithMessage("El número de documento no puede superar 20 caracteres.");
+            .MaximumLength(20).WithMessage("El número de documento no puede superar 20 caracteres.")
+            .Must(IsValidEcuadorianDocument).WithMessage("La cédula ingresada no es válida (Módulo 10).");
 
         RuleFor(customer => customer.FirstName)
             .NotEmpty().WithMessage("El nombre es obligatorio.")
@@ -39,5 +40,47 @@ public class CreateCustomerValidator : AbstractValidator<CreateCustomerDto>
         RuleFor(customer => customer.City)
             .MaximumLength(100).WithMessage("La ciudad no puede superar 100 caracteres.")
             .When(customer => !string.IsNullOrWhiteSpace(customer.City));
+    }
+
+    private bool IsValidEcuadorianDocument(string document)
+    {
+        if (string.IsNullOrWhiteSpace(document)) return false;
+
+        // Limpiar espacios y validar longitud
+        var doc = document.Trim();
+        if (doc.Length != 10 && doc.Length != 13) return false;
+        if (!doc.All(char.IsDigit)) return false;
+
+        // Si es RUC de persona natural, debe terminar en 001
+        if (doc.Length == 13 && !doc.EndsWith("001")) return false;
+
+        // Validar como cédula (los primeros 10 dígitos)
+        var cedula = doc.Substring(0, 10);
+        
+        // Código de provincia (01 a 24, 30 en el exterior)
+        var provinceCode = int.Parse(cedula.Substring(0, 2));
+        if ((provinceCode < 1 || provinceCode > 24) && provinceCode != 30) return false;
+
+        // El tercer dígito es menor a 6 para personas naturales
+        var thirdDigit = int.Parse(cedula.Substring(2, 1));
+        if (thirdDigit >= 6) return true; // Asumimos que para RUCs jurídicos o públicos omitimos el módulo 10 aquí, u otro algoritmo (módulo 11) aplica.
+
+        // Algoritmo Módulo 10
+        int sum = 0;
+        for (int i = 0; i < 9; i++)
+        {
+            int digit = cedula[i] - '0';
+            if (i % 2 == 0) // Posición impar (0, 2, 4...)
+            {
+                digit *= 2;
+                if (digit > 9) digit -= 9;
+            }
+            sum += digit;
+        }
+
+        int checkDigit = cedula[9] - '0';
+        int calculatedCheckDigit = sum % 10 == 0 ? 0 : 10 - (sum % 10);
+
+        return checkDigit == calculatedCheckDigit;
     }
 }

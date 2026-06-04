@@ -16,7 +16,10 @@ public class Sale
     public decimal     Total       { get; private set; }
     public SaleStatus  Status      { get; private set; } = SaleStatus.Draft;
 
+    public int?        UserId      { get; private set; }
+
     public Customer Customer { get; private set; } = null!;
+    public User?    User     { get; private set; }
 
     // ✅ Sin readonly para poder asignarlo en el método Create
     private List<SaleDetail> _details = [];
@@ -24,7 +27,7 @@ public class Sale
 
     private Sale() { }
 
-    public static Sale Create(int customerId, PaymentType paymentType, List<SaleDetail> details)
+    public static Sale Create(int customerId, PaymentType paymentType, List<SaleDetail> details, int? userId = null)
     {
         if (customerId <= 0)
             throw new DomainException("El cliente es obligatorio.");
@@ -46,8 +49,33 @@ public class Sale
             TaxAmount   = taxAmount,
             Total       = total,
             Status      = SaleStatus.Draft,
+            UserId      = userId,
             _details    = details
         };
+    }
+
+    public void UpdateDraft(int customerId, PaymentType paymentType, List<SaleDetail> details, int? userId = null)
+    {
+        if (Status != SaleStatus.Draft)
+            throw new DomainException("Solo se pueden modificar facturas en estado Borrador.");
+
+        if (customerId <= 0)
+            throw new DomainException("El cliente es obligatorio.");
+
+        CustomerId  = customerId;
+        PaymentType = paymentType;
+        UserId      = userId;
+
+        _details.Clear();
+        if (details != null && details.Count > 0)
+        {
+            _details.AddRange(details);
+        }
+
+        var subtotal = _details.Sum(saleDetail => saleDetail.Subtotal);
+        TaxAmount    = Math.Round(subtotal * TaxRate, 2);
+        Subtotal     = subtotal;
+        Total        = subtotal + TaxAmount;
     }
 
     public void ConfirmSale()
