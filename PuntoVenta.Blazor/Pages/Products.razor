@@ -1,5 +1,6 @@
 @page "/productos"
 @attribute [Authorize]
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Authorization
 @using PuntoVenta.Blazor.Models
 @using PuntoVenta.Blazor.Services
@@ -28,10 +29,10 @@
         <div style="display:grid; grid-template-columns: 1fr auto auto; gap:var(--spacing-md); align-items:flex-end;">
             <div class="field-group">
                 <label class="field-label">Nombre</label>
-                <input class="field-input" @bind="_searchName" @bind:event="oninput" placeholder="Buscar producto" />
+                <input class="field-input" @bind="SearchName" @bind:event="oninput" placeholder="Buscar producto" />
             </div>
             <div class="field-group" style="flex-direction:row; align-items:center; gap:var(--spacing-sm);">
-                <input type="checkbox" @bind="_onlyInStock" />
+                <input type="checkbox" @bind="OnlyInStock" />
                 <label class="field-label" style="margin:0;">Solo con stock</label>
             </div>
             <button class="btn btn--primary" @onclick="() => LoadPageAsync(1)">Buscar</button>
@@ -122,30 +123,36 @@
                 <span class="modal-title">Nuevo producto</span>
                 <button class="btn btn--ghost btn--icon" @onclick="CloseCreateModal"><i class="ph ph-x"></i></button>
             </div>
-            <div class="modal-body">
-                <div class="form-grid form-grid-1">
-                    <div class="field-group">
-                        <label class="field-label">Nombre</label>
-                        <input class="field-input" @bind="_newProduct.Name" />
+            <EditForm Model="_newProduct" OnValidSubmit="CreateProductAsync">
+                <DataAnnotationsValidator />
+                <div class="modal-body">
+                    <div class="form-grid form-grid-1">
+                        <div class="field-group">
+                            <label class="field-label">Nombre</label>
+                            <InputText class="field-input" @bind-Value="_newProduct.Name" />
+                            <ValidationMessage For="@(() => _newProduct.Name)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Precio</label>
+                            <InputNumber class="field-input" @bind-Value="_newProduct.Price" />
+                            <ValidationMessage For="@(() => _newProduct.Price)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Stock</label>
+                            <InputNumber class="field-input" @bind-Value="_newProduct.Stock" />
+                            <ValidationMessage For="@(() => _newProduct.Stock)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
                     </div>
-                    <div class="field-group">
-                        <label class="field-label">Precio</label>
-                        <input class="field-input" type="number" step="0.01" min="0" @bind="_newProduct.Price" />
-                    </div>
-                    <div class="field-group">
-                        <label class="field-label">Stock</label>
-                        <input class="field-input" type="number" min="0" @bind="_newProduct.Stock" />
-                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_modalMessage))
+                    {
+                        <div class="alert @(_isModalError ? "alert--error" : "alert--success")" style="margin-top:var(--spacing-md);">@_modalMessage</div>
+                    }
                 </div>
-                @if (!string.IsNullOrWhiteSpace(_modalMessage))
-                {
-                    <div class="alert @(_isModalError ? "alert--error" : "alert--success")" style="margin-top:var(--spacing-md);">@_modalMessage</div>
-                }
-            </div>
-            <div class="modal-footer" style="justify-content: flex-end;">
-                <button class="btn btn--ghost" @onclick="CloseCreateModal">Cancelar</button>
-                <button class="btn btn--success" @onclick="CreateProductAsync" disabled="@_isBusy">Crear producto</button>
-            </div>
+                <div class="modal-footer" style="justify-content: flex-end;">
+                    <button type="button" class="btn btn--ghost" @onclick="CloseCreateModal">Cancelar</button>
+                    <button type="submit" class="btn btn--success" disabled="@_isBusy">Crear producto</button>
+                </div>
+            </EditForm>
         </div>
     </div>
 }
@@ -164,6 +171,50 @@
     private string? _modalMessage;
     private bool _isModalError;
     private readonly CreateProductModel _newProduct = new();
+    private System.Threading.Timer? _debounceTimer;
+
+    private string SearchName
+    {
+        get => _searchName;
+        set
+        {
+            if (_searchName != value)
+            {
+                _searchName = value;
+                OnSearchInput();
+            }
+        }
+    }
+
+    private bool OnlyInStock
+    {
+        get => _onlyInStock;
+        set
+        {
+            if (_onlyInStock != value)
+            {
+                _onlyInStock = value;
+                _ = LoadPageAsync(1);
+            }
+        }
+    }
+
+    private void OnSearchInput()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadPageAsync(1);
+            });
+        }, null, 400, System.Threading.Timeout.Infinite);
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
 
     protected override async Task OnInitializedAsync()
     {

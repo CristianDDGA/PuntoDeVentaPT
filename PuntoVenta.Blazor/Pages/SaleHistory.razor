@@ -1,9 +1,11 @@
 @page "/historial"
 @attribute [Authorize]
+@implements IDisposable
 @using PuntoVenta.Blazor.Models
 @using PuntoVenta.Blazor.Services
 @inject SaleApiService SaleApiService
 @inject IJSRuntime     JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Historial de Facturas — Punto de Venta</PageTitle>
 
@@ -97,7 +99,10 @@
                             <th class="align-right">Total</th>
                             <th class="align-center">Estado</th>
                             <th class="align-center">Detalle</th>
-                            <th class="align-center">Acciones</th>
+                            @if (_isAdmin)
+                            {
+                                <th class="align-center">Acciones</th>
+                            }
                             <th class="align-center">PDF</th>
                         </tr>
                     </thead>
@@ -142,14 +147,17 @@
                                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Ver
                                     </button>
                                 </td>
-                                <td class="align-center">
-                                    @if (saleModel.Status != "Anulado")
-                                    {
-                                        <button class="btn btn--danger btn--sm" @onclick="() => VoidSaleAsync(saleModel.SaleId)" title="Anular Factura">
-                                            Anular
-                                        </button>
-                                    }
-                                </td>
+                                @if (_isAdmin)
+                                {
+                                    <td class="align-center">
+                                        @if (saleModel.Status != "Anulado")
+                                        {
+                                            <button class="btn btn--danger btn--sm" @onclick="() => VoidSaleAsync(saleModel.SaleId)" title="Anular Factura">
+                                                Anular
+                                            </button>
+                                        }
+                                    </td>
+                                }
                                 <td class="align-center">
                                     <button class="btn btn--ghost btn--sm"
                                             title="Ver PDF"
@@ -340,27 +348,54 @@
 
     // ── Lifecycle ───────────────────────────────────────────────────────
 
+    private bool _isAdmin;
+
     protected override async Task OnInitializedAsync()
-        => await LoadPageAsync(1);
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isAdmin = authState.User.IsInRole("Admin");
+        await LoadPageAsync(1);
+    }
 
     // ── Search input handlers ───────────────────────────────────────────
+
+    private System.Threading.Timer? _debounceTimer;
 
     private void OnSearchSaleIdInput(ChangeEventArgs e)
     {
         _searchSaleId       = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
         _searchCustomerName = string.Empty;
+        TriggerDebouncedSearch();
     }
 
     private void OnSearchCustomerNameInput(ChangeEventArgs e)
     {
         _searchCustomerName = e.Value?.ToString() ?? string.Empty;
         _searchSaleId       = null;
+        TriggerDebouncedSearch();
+    }
+
+    private void TriggerDebouncedSearch()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadPageAsync(1);
+            });
+        }, null, 400, System.Threading.Timeout.Infinite);
     }
 
     private async Task ToggleExcludeVoided()
     {
         _excludeVoided = !_excludeVoided;
         await LoadPageAsync(1);
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
     }
 
     // ── Pagination ──────────────────────────────────────────────────────

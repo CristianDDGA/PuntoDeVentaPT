@@ -43,5 +43,14 @@ public class RoleService : IRoleService
 
     public Task<bool> ActivateAsync(int roleId) => _roleRepository.ActivateAsync(roleId);
 
-    public Task<bool> DeactivateAsync(int roleId) => _roleRepository.DeactivateAsync(roleId);
+    public async Task<bool> DeactivateAsync(int roleId)
+    {
+        var role = await _roleRepository.GetByIdAsync(roleId);
+        if (role is null) return false;
+
+        if (role.Name.Equals(PuntoVenta.Application.Constants.AppRoles.Admin, System.StringComparison.OrdinalIgnoreCase))
+            throw new System.InvalidOperationException("No se puede desactivar el rol de Administrador.");
+
+        return await _roleRepository.DeactivateAsync(roleId);
+    }
 }

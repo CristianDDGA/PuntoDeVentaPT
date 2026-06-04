@@ -98,6 +98,7 @@ public class SalesController : ControllerBase
         return File(pdfBytes, "application/pdf", $"Factura_{saleId}.pdf");
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPut("{saleId:int}/void")]
     public async Task<IActionResult> VoidSale(int saleId)
     {
@@ -113,6 +114,7 @@ public class SalesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPut("{saleId:int}/pay")]
     public async Task<IActionResult> MarkAsPaid(int saleId)
     {

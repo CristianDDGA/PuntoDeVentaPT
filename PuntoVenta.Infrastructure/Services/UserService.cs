@@ -51,6 +51,18 @@ public class UserService : IUserService
         var role = await _roleRepository.GetByIdAsync(dto.RoleId)
             ?? throw new KeyNotFoundException($"Rol {dto.RoleId} no encontrado.");
 
+        // Verificar si se está intentando cambiar el rol del único admin activo a uno que no es admin
+        if (user.Role != null && user.Role.Name.Equals(PuntoVenta.Application.Constants.AppRoles.Admin, System.StringComparison.OrdinalIgnoreCase) &&
+            !role.Name.Equals(PuntoVenta.Application.Constants.AppRoles.Admin, System.StringComparison.OrdinalIgnoreCase))
+        {
+            var allUsers = await _userRepository.GetAllAsync();
+            var activeAdminsCount = allUsers.Count(u => u.IsActive && u.Role != null && u.Role.Name.Equals(PuntoVenta.Application.Constants.AppRoles.Admin, System.StringComparison.OrdinalIgnoreCase));
+            if (activeAdminsCount <= 1)
+            {
+                throw new System.InvalidOperationException("No se puede cambiar el rol del único administrador activo del sistema.");
+            }
+        }
+
         user.UpdateProfile(dto.FullName, dto.Email);
         user.ChangeRole(role.RoleId);
         await _userRepository.UpdateAsync(user);
@@ -69,7 +81,23 @@ public class UserService : IUserService
 
     public Task<bool> ActivateAsync(int userId) => _userRepository.ActivateAsync(userId);
 
-    public Task<bool> DeactivateAsync(int userId) => _userRepository.DeactivateAsync(userId);
+    public async Task<bool> DeactivateAsync(int userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user is null) return false;
+
+        if (user.Role != null && user.Role.Name.Equals(PuntoVenta.Application.Constants.AppRoles.Admin, System.StringComparison.OrdinalIgnoreCase))
+        {
+            var allUsers = await _userRepository.GetAllAsync();
+            var activeAdminsCount = allUsers.Count(u => u.IsActive && u.Role != null && u.Role.Name.Equals(PuntoVenta.Application.Constants.AppRoles.Admin, System.StringComparison.OrdinalIgnoreCase));
+            if (activeAdminsCount <= 1)
+            {
+                throw new System.InvalidOperationException("No se puede desactivar el único administrador activo del sistema.");
+            }
+        }
+
+        return await _userRepository.DeactivateAsync(userId);
+    }
 
     public async Task<bool> UnlockAsync(int userId)
     {

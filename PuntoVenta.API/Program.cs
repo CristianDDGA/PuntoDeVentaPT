@@ -70,7 +70,7 @@ builder.Services.AddScoped<SecuritySeedService>();
 // Política de CORS para Blazor
 builder.Services.AddCors(corsOptions =>
     corsOptions.AddPolicy("BlazorPolicy", corsPolicy =>
-        corsPolicy.AllowAnyOrigin()
+        corsPolicy.WithOrigins("http://localhost:5169", "https://localhost:7177")
                   .AllowAnyMethod()
                   .AllowAnyHeader()));
 

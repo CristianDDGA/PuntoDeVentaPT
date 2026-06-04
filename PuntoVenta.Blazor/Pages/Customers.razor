@@ -1,5 +1,6 @@
 @page "/clientes"
 @attribute [Authorize]
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Authorization
 @using PuntoVenta.Blazor.Models
 @using PuntoVenta.Blazor.Services
@@ -28,11 +29,11 @@
         <div style="display:grid; grid-template-columns: 180px 1fr auto; gap:var(--spacing-md); align-items:flex-end;">
             <div class="field-group">
                 <label class="field-label">Documento</label>
-                <input class="field-input" @bind="_searchDocument" @bind:event="oninput" placeholder="Ej: 1720..." />
+                <input class="field-input" @bind="SearchDocument" @bind:event="oninput" placeholder="Ej: 1720..." />
             </div>
             <div class="field-group">
                 <label class="field-label">Apellido</label>
-                <input class="field-input" @bind="_searchLastName" @bind:event="oninput" placeholder="Buscar por apellido" />
+                <input class="field-input" @bind="SearchLastName" @bind:event="oninput" placeholder="Buscar por apellido" />
             </div>
             <button class="btn btn--primary" @onclick="() => LoadPageAsync(1)">Buscar</button>
         </div>
@@ -124,46 +125,56 @@
                 <span class="modal-title">Nuevo cliente</span>
                 <button class="btn btn--ghost btn--icon" @onclick="CloseCreateModal"><i class="ph ph-x"></i></button>
             </div>
-            <div class="modal-body">
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:var(--spacing-md);">
-                    <div class="field-group">
-                        <label class="field-label">Documento</label>
-                        <input class="field-input" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" @bind="_newCustomer.DocumentNumber" />
+            <EditForm Model="_newCustomer" OnValidSubmit="CreateCustomerAsync">
+                <DataAnnotationsValidator />
+                <div class="modal-body">
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:var(--spacing-md);">
+                        <div class="field-group">
+                            <label class="field-label">Documento</label>
+                            <InputText class="field-input" maxlength="20" @bind-Value="_newCustomer.DocumentNumber" />
+                            <ValidationMessage For="@(() => _newCustomer.DocumentNumber)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Nombre</label>
+                            <InputText class="field-input" @bind-Value="_newCustomer.FirstName" />
+                            <ValidationMessage For="@(() => _newCustomer.FirstName)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Apellido</label>
+                            <InputText class="field-input" @bind-Value="_newCustomer.LastName" />
+                            <ValidationMessage For="@(() => _newCustomer.LastName)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Teléfono</label>
+                            <InputText class="field-input" maxlength="10" @bind-Value="_newCustomer.Phone" />
+                            <ValidationMessage For="@(() => _newCustomer.Phone)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Dirección</label>
+                            <InputText class="field-input" @bind-Value="_newCustomer.Address" />
+                            <ValidationMessage For="@(() => _newCustomer.Address)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Ciudad</label>
+                            <InputText class="field-input" @bind-Value="_newCustomer.City" />
+                            <ValidationMessage For="@(() => _newCustomer.City)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
+                        <div class="field-group" style="grid-column: span 2;">
+                            <label class="field-label">Email</label>
+                            <InputText class="field-input" @bind-Value="_newCustomer.Email" />
+                            <ValidationMessage For="@(() => _newCustomer.Email)" class="alert alert--error" style="margin-top:4px; padding:4px;" />
+                        </div>
                     </div>
-                    <div class="field-group">
-                        <label class="field-label">Nombre</label>
-                        <input class="field-input" @bind="_newCustomer.FirstName" />
-                    </div>
-                    <div class="field-group">
-                        <label class="field-label">Apellido</label>
-                        <input class="field-input" @bind="_newCustomer.LastName" />
-                    </div>
-                    <div class="field-group">
-                        <label class="field-label">Teléfono</label>
-                        <input class="field-input" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" @bind="_newCustomer.Phone" />
-                    </div>
-                    <div class="field-group">
-                        <label class="field-label">Dirección</label>
-                        <input class="field-input" @bind="_newCustomer.Address" />
-                    </div>
-                    <div class="field-group">
-                        <label class="field-label">Ciudad</label>
-                        <input class="field-input" @bind="_newCustomer.City" />
-                    </div>
-                    <div class="field-group" style="grid-column: span 2;">
-                        <label class="field-label">Email</label>
-                        <input class="field-input" @bind="_newCustomer.Email" />
-                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_modalMessage))
+                    {
+                        <div class="alert @(_isModalError ? "alert--error" : "alert--success")" style="margin-top:var(--spacing-md);">@_modalMessage</div>
+                    }
                 </div>
-                @if (!string.IsNullOrWhiteSpace(_modalMessage))
-                {
-                    <div class="alert @(_isModalError ? "alert--error" : "alert--success")" style="margin-top:var(--spacing-md);">@_modalMessage</div>
-                }
-            </div>
-            <div class="modal-footer" style="justify-content: flex-end;">
-                <button class="btn btn--ghost" @onclick="CloseCreateModal">Cancelar</button>
-                <button class="btn btn--success" @onclick="CreateCustomerAsync" disabled="@_isBusy">Crear cliente</button>
-            </div>
+                <div class="modal-footer" style="justify-content: flex-end;">
+                    <button type="button" class="btn btn--ghost" @onclick="CloseCreateModal">Cancelar</button>
+                    <button type="submit" class="btn btn--success" disabled="@_isBusy">Crear cliente</button>
+                </div>
+            </EditForm>
         </div>
     </div>
 }
@@ -182,6 +193,50 @@
     private string? _modalMessage;
     private bool _isModalError;
     private readonly CreateCustomerModel _newCustomer = new();
+    private System.Threading.Timer? _debounceTimer;
+
+    private string SearchDocument
+    {
+        get => _searchDocument;
+        set
+        {
+            if (_searchDocument != value)
+            {
+                _searchDocument = value;
+                OnSearchInput();
+            }
+        }
+    }
+
+    private string SearchLastName
+    {
+        get => _searchLastName;
+        set
+        {
+            if (_searchLastName != value)
+            {
+                _searchLastName = value;
+                OnSearchInput();
+            }
+        }
+    }
+
+    private void OnSearchInput()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadPageAsync(1);
+            });
+        }, null, 400, System.Threading.Timeout.Infinite);
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
 
     protected override async Task OnInitializedAsync()
     {

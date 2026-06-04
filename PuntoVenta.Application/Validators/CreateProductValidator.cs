@@ -9,6 +9,7 @@ public class CreateProductValidator : AbstractValidator<CreateProductDto>
     {
         RuleFor(product => product.Name)
             .NotEmpty().WithMessage("El nombre del producto es obligatorio.")
+            .Must(name => !string.IsNullOrWhiteSpace(name)).WithMessage("El nombre del producto no puede contener solo espacios en blanco.")
             .MaximumLength(150).WithMessage("El nombre no puede superar 150 caracteres.");
 
         RuleFor(product => product.Price)

@@ -3,6 +3,7 @@
 @using PuntoVenta.Blazor.Models
 @using PuntoVenta.Blazor.Services
 @inject UserApiService UserApiService
+@inject AuthSessionService AuthSessionService
 
 <PageTitle>Administración de Usuarios — Punto de Venta</PageTitle>
 
@@ -17,10 +18,28 @@
     </div>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; margin-bottom:var(--spacing-md);">
+        @if (!string.IsNullOrEmpty(_pageError))
+        {
+            <div class="alert alert--error" style="margin-bottom: var(--spacing-md);">
+                <i class="ph ph-warning-circle"></i> @_pageError
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(_pageSuccess))
+        {
+            <div class="alert alert--success" style="margin-bottom: var(--spacing-md);">
+                <i class="ph ph-check-circle"></i> @_pageSuccess
+            </div>
+        }
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--spacing-md); margin-bottom:var(--spacing-md); flex-wrap:wrap;">
             <button class="btn btn--primary" @onclick="OpenCreateModal">
                 <i class="ph ph-plus-circle"></i> Nuevo Usuario
             </button>
+            <div style="position:relative; width: 300px;">
+                <input class="field-input" placeholder="Buscar usuario..." 
+                       @bind="_searchTerm" @bind:event="oninput" style="padding-left: 36px;" />
+                <i class="ph ph-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--color-text-secondary); pointer-events:none;"></i>
+            </div>
         </div>
 
         @if (_isLoading)
@@ -44,7 +63,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var user in _users)
+                        @foreach (var user in FilteredUsers)
                         {
                             <tr>
                                 <td class="font-mono">@user.Username</td>
@@ -69,19 +88,25 @@
                                     <div style="display:flex; gap:4px; justify-content:center;">
                                         @if (user.IsLocked)
                                         {
-                                            <button class="btn btn--warning btn--sm" title="Desbloquear" @onclick="() => UnlockUser(user.UserId)">
+                                            <button class="btn btn--warning btn--sm" title="Desbloquear" 
+                                                    disabled="@_isBusy" 
+                                                    @onclick="() => UnlockUser(user.UserId)">
                                                 <i class="ph ph-lock-key-open"></i> Desbloquear
                                             </button>
                                         }
                                         @if (user.IsActive)
                                         {
-                                            <button class="btn btn--danger btn--sm" title="Desactivar" @onclick="() => DeactivateUser(user.UserId)">
+                                            <button class="btn btn--danger btn--sm" title="Desactivar" 
+                                                    disabled="@(_isBusy || user.UserId == _currentUserId)" 
+                                                    @onclick="() => DeactivateUser(user.UserId)">
                                                 <i class="ph ph-user-minus"></i> Desactivar
                                             </button>
                                         }
                                         else
                                         {
-                                            <button class="btn btn--success btn--sm" title="Activar" @onclick="() => ActivateUser(user.UserId)">
+                                            <button class="btn btn--success btn--sm" title="Activar" 
+                                                    disabled="@_isBusy" 
+                                                    @onclick="() => ActivateUser(user.UserId)">
                                                 <i class="ph ph-user-plus"></i> Activar
                                             </button>
                                         }
@@ -168,6 +193,8 @@
     </div>
 }
 
+<ConfirmModal @ref="_confirmModal" />
+
 @code {
     private List<UserModel> _users = [];
     private List<RoleModel> _roles = [];
@@ -176,10 +203,28 @@
     private bool _isModalOpen = false;
     private bool _isSaving = false;
     private string _errorMessage = string.Empty;
+    private string _pageError = string.Empty;
+    private string _pageSuccess = string.Empty;
     private CreateUserModel _newUser = new();
+    private int _currentUserId;
+    private bool _isBusy;
+    private ConfirmModal? _confirmModal;
+    private string _searchTerm = string.Empty;
+
+    private IEnumerable<UserModel> FilteredUsers => string.IsNullOrWhiteSpace(_searchTerm)
+        ? _users
+        : _users.Where(u => 
+            u.Username.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            u.FullName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            (u.Email?.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {
+        var session = await AuthSessionService.GetCurrentSessionAsync();
+        if (session is not null)
+        {
+            _currentUserId = session.UserId;
+        }
         await LoadDataAsync();
     }
 
@@ -231,19 +276,85 @@
 
     private async Task UnlockUser(int userId)
     {
-        await UserApiService.UnlockAsync(userId);
-        await LoadDataAsync();
+        if (_confirmModal is null) return;
+        var confirmed = await _confirmModal.ShowAsync("¿Está seguro de que desea desbloquear a este usuario?", "Desbloquear usuario", "Desbloquear");
+        if (!confirmed) return;
+
+        _pageError = string.Empty;
+        _pageSuccess = string.Empty;
+        _isBusy = true;
+        try
+        {
+            var success = await UserApiService.UnlockAsync(userId);
+            if (!success)
+            {
+                _pageError = "No se pudo desbloquear el usuario.";
+            }
+            else
+            {
+                _pageSuccess = "Usuario desbloqueado correctamente.";
+            }
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _isBusy = false;
+        }
     }
 
     private async Task DeactivateUser(int userId)
     {
-        await UserApiService.DeactivateAsync(userId);
-        await LoadDataAsync();
+        if (_confirmModal is null) return;
+        var confirmed = await _confirmModal.ShowAsync("¿Está seguro de que desea desactivar a este usuario? Ya no podrá iniciar sesión en el sistema.", "Desactivar usuario", "Desactivar");
+        if (!confirmed) return;
+
+        _pageError = string.Empty;
+        _pageSuccess = string.Empty;
+        _isBusy = true;
+        try
+        {
+            var success = await UserApiService.DeactivateAsync(userId);
+            if (!success)
+            {
+                _pageError = "No se pudo desactivar el usuario. Asegúrese de que no sea el único administrador activo del sistema.";
+            }
+            else
+            {
+                _pageSuccess = "Usuario desactivado correctamente.";
+            }
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _isBusy = false;
+        }
     }
 
     private async Task ActivateUser(int userId)
     {
-        await UserApiService.ActivateAsync(userId);
-        await LoadDataAsync();
+        if (_confirmModal is null) return;
+        var confirmed = await _confirmModal.ShowAsync("¿Está seguro de que desea activar a este usuario? Volverá a tener acceso al sistema.", "Activar usuario", "Activar");
+        if (!confirmed) return;
+
+        _pageError = string.Empty;
+        _pageSuccess = string.Empty;
+        _isBusy = true;
+        try
+        {
+            var success = await UserApiService.ActivateAsync(userId);
+            if (!success)
+            {
+                _pageError = "No se pudo activar el usuario.";
+            }
+            else
+            {
+                _pageSuccess = "Usuario activado correctamente.";
+            }
+            await LoadDataAsync();
+        }
+        finally
+        {
+            _isBusy = false;
+        }
     }
 }

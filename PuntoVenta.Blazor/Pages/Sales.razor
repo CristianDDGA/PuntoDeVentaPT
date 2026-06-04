@@ -687,6 +687,8 @@
     private string               _selectedPaymentType = "Cash";
     private Timer?               _invoiceRefreshTimer;
     private Timer?               _productSearchDebounceTimer;
+    private Timer?               _customerSearchDebounceTimer;
+    private Timer?               _saleSearchDebounceTimer;
 
     // ── PDF Preview ─────────────────────────────────────────────────────
     private bool   _isPdfPreviewModalOpen = false;
@@ -748,6 +750,10 @@
         _invoiceRefreshTimer?.Dispose();
         _productSearchDebounceTimer?.Stop();
         _productSearchDebounceTimer?.Dispose();
+        _customerSearchDebounceTimer?.Stop();
+        _customerSearchDebounceTimer?.Dispose();
+        _saleSearchDebounceTimer?.Stop();
+        _saleSearchDebounceTimer?.Dispose();
     }
 
     // ── Set quantity to max stock (Fetch latest from API) ────────────────
@@ -790,13 +796,17 @@
     {
         if (_selectedProduct is null) return;
         if (int.TryParse(e.Value?.ToString(), out var parsed))
-            _selectedQuantity = Math.Clamp(parsed, 1, _selectedProduct.Stock);
+            _selectedQuantity = parsed;
+        else
+            _selectedQuantity = 0;
     }
 
     private void OnDetailQuantityInput(ChangeEventArgs e, SaleDetailModel detail)
     {
         if (int.TryParse(e.Value?.ToString(), out var parsed))
-            detail.Quantity = Math.Clamp(parsed, 1, detail.MaxStock);
+            detail.Quantity = parsed;
+        else
+            detail.Quantity = 0;
     }
 
     // ── Add product to sale detail ──────────────────────────────────────
@@ -805,6 +815,7 @@
     private void AddProductToSale()
     {
         _errorMessage = string.Empty;
+        _successMessage = string.Empty;
 
         if (_selectedProduct is null)
         {
@@ -877,6 +888,7 @@
     private async Task CreateSale()
     {
         _errorMessage = string.Empty;
+        _successMessage = string.Empty;
 
         if (_selectedCustomer is null)
         {
@@ -939,6 +951,8 @@
                 _isPdfPreviewModalOpen = true;
             }
 
+            _successMessage = $"Factura #{savedSale.SaleId:D6} emitida con éxito.";
+
             // Reset form and advance invoice number
             _selectedCustomer  = null;
             _selectedProduct   = null;
@@ -988,6 +1002,8 @@
 
     private async Task OpenCustomerModal()
     {
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
         _customerSearchDocument = string.Empty;
         _customerSearchLastName = string.Empty;
         _selectedCustomerRow    = _selectedCustomer;
@@ -1001,12 +1017,26 @@
     {
         _customerSearchDocument = e.Value?.ToString() ?? string.Empty;
         _customerSearchLastName = string.Empty; // Document takes priority: clear text filter
+        TriggerCustomerSearchDebounce();
     }
 
     private void OnCustomerSearchLastNameInput(ChangeEventArgs e)
     {
         _customerSearchLastName = e.Value?.ToString() ?? string.Empty;
         _customerSearchDocument = string.Empty; // Text search: clear document filter
+        TriggerCustomerSearchDebounce();
+    }
+
+    private void TriggerCustomerSearchDebounce()
+    {
+        _customerSearchDebounceTimer?.Stop();
+        _customerSearchDebounceTimer?.Dispose();
+        _customerSearchDebounceTimer = new Timer(400) { AutoReset = false };
+        _customerSearchDebounceTimer.Elapsed += async (_, _) =>
+        {
+            await InvokeAsync(() => LoadCustomerPageAsync(1));
+        };
+        _customerSearchDebounceTimer.Start();
     }
 
     private async Task LoadCustomerPageAsync(int page)
@@ -1032,6 +1062,8 @@
 
     private async Task OpenProductModal()
     {
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
         _productSearchId   = null;
         _productSearchName = string.Empty;
         _selectedProductRow = _selectedProduct;
@@ -1045,14 +1077,18 @@
     {
         _productSearchId   = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
         _productSearchName = string.Empty;
+        TriggerProductSearchDebounce();
     }
 
-    private async void OnProductSearchNameInput(ChangeEventArgs e)
+    private void OnProductSearchNameInput(ChangeEventArgs e)
     {
         _productSearchName = e.Value?.ToString() ?? string.Empty;
         _productSearchId   = null;
+        TriggerProductSearchDebounce();
+    }
 
-        // Debounce: esperar 400ms antes de disparar la búsqueda
+    private void TriggerProductSearchDebounce()
+    {
         _productSearchDebounceTimer?.Stop();
         _productSearchDebounceTimer?.Dispose();
         _productSearchDebounceTimer = new Timer(400) { AutoReset = false };
@@ -1099,12 +1135,26 @@
     {
         _saleSearchId           = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
         _saleSearchCustomerName = string.Empty;
+        TriggerSaleSearchDebounce();
     }
 
     private void OnSaleSearchNameInput(ChangeEventArgs e)
     {
         _saleSearchCustomerName = e.Value?.ToString() ?? string.Empty;
         _saleSearchId           = null;
+        TriggerSaleSearchDebounce();
+    }
+
+    private void TriggerSaleSearchDebounce()
+    {
+        _saleSearchDebounceTimer?.Stop();
+        _saleSearchDebounceTimer?.Dispose();
+        _saleSearchDebounceTimer = new Timer(400) { AutoReset = false };
+        _saleSearchDebounceTimer.Elapsed += async (_, _) =>
+        {
+            await InvokeAsync(() => LoadSaleHistoryPageAsync(1));
+        };
+        _saleSearchDebounceTimer.Start();
     }
 
     private async Task LoadSaleHistoryPageAsync(int page)

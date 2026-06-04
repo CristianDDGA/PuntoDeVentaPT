@@ -78,7 +78,15 @@ public class UsersController : ControllerBase
 
     [HttpPut("{userId:int}/deactivate")]
     public async Task<IActionResult> Deactivate(int userId)
-        => await _userService.DeactivateAsync(userId) ? NoContent() : NotFound($"User with id {userId} not found.");
+    {
+        var currentUserIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(currentUserIdClaim, out var currentUserId) && currentUserId == userId)
+        {
+            return BadRequest(new { Message = "No puedes desactivar tu propio usuario." });
+        }
+
+        return await _userService.DeactivateAsync(userId) ? NoContent() : NotFound($"User with id {userId} not found.");
+    }
 
     [HttpPut("{userId:int}/unlock")]
     public async Task<IActionResult> Unlock(int userId)

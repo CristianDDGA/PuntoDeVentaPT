@@ -118,12 +118,12 @@
                     @Body
                 </ChildContent>
                 <ErrorContent Context="ex">
-                    <div class="alert alert--error" style="white-space: pre-wrap; font-family: monospace;">
-                        <strong>Se produjo un error no controlado:</strong>
-                        <br/>
-                        @ex.Message
-                        <br/>
-                        @ex.StackTrace
+                    <div class="alert alert--error" style="padding: var(--spacing-md); display: flex; align-items: flex-start; gap: var(--spacing-sm); margin: var(--spacing-md) 0;">
+                        <i class="ph ph-warning-circle" style="font-size: var(--font-size-xl); margin-top: 2px;"></i>
+                        <div>
+                            <strong style="display: block; margin-bottom: var(--spacing-xs);">Ha ocurrido un error inesperado</strong>
+                            <span style="font-size: var(--font-size-sm); opacity: 0.9;">Ocurrió un inconveniente al procesar la solicitud. Por favor, intente recargar la página. Si el problema persiste, contacte al administrador.</span>
+                        </div>
                     </div>
                 </ErrorContent>
             </ErrorBoundary>
